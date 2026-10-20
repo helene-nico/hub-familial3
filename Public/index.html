@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hub Familial">
+  <meta name="theme-color" content="#4f46e5">
+  <title>Hub Familial &amp; Budget</title>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ÉCRAN DE CONNEXION -->
+<div id="login-screen">
+  <div class="login-container">
+    <h1 style="font-size: 1.8rem; margin-bottom: 8px;">Hub Familial</h1>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">Sélectionnez votre profil</p>
+    <div class="users-grid" id="loginUsersGrid"></div>
+  </div>
+</div>
+
+<div class="container hidden" id="app-container">
+  <!-- Barre Supérieure UNIQUE -->
+  <div class="top-bar">
+    <div style="display: flex; gap: 10px; align-items: center; margin-left: auto;">
+      <!-- Bouton Accueil, masqué sur le tableau de bord, visible dans les rubriques -->
+      <button id="btn-back-dashboard" class="btn-primary hidden" onclick="switchMainTab('dashboard')" style="font-size: 0.95rem;">
+        🏠 Accueil
+      </button>
+
+      <div class="user-badge" id="topUserBadge">
+        <span id="topAvatar">👤</span>
+        <span id="topUserName">Profil</span>
+      </div>
+      <button class="btn-nav" id="btn-open-settings" onclick="openGeneralSettingsModal()" title="Paramètres personnels">⚙️</button>
+      <button class="btn-nav" onclick="logout()" title="Déconnexion">🚪</button>
+    </div>
+  </div>
+
+ <!-- ================= ONGLET 0 : TABLEAU DE BORD ================= -->
+  <section id="tab-dashboard" class="tab-content active">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 style="font-size: 1.4rem; margin: 0; font-weight: 800;">Tableau de bord</h2>
+      <button class="btn-nav" onclick="openDashboardCustomModal()" style="font-size: 0.85rem;">🎨 Personnaliser</button>
+    </div>
+
+    <div class="dashboard-grid">
+      <!-- Tuile Budget -->
+      <div class="dash-widget" id="widget-finances" onclick="switchMainTab('comptes')">
+        <span class="dash-widget-icon">💰</span>
+        <span class="dash-widget-title">Budget</span>
+      </div>
+
+      <!-- Tuile Menus -->
+      <div class="dash-widget" id="widget-meals" onclick="switchMainTab('meals')">
+        <span class="dash-widget-icon">🍽️</span>
+        <span class="dash-widget-title">Menus &amp; Recettes</span>
+      </div>
+
+      <!-- Tuile Missions -->
+      <div class="dash-widget" id="widget-missions" onclick="switchMainTab('missions')">
+        <span class="dash-widget-icon">🎯</span>
+        <span class="dash-widget-title">Étoiles &amp; Missions</span>
+      </div>
+
+      <!-- Tuile Documents -->
+      <div class="dash-widget" id="widget-documents" onclick="switchMainTab('documents')">
+        <span class="dash-widget-icon">📁</span>
+        <span class="dash-widget-title">Documents</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ONGLET 1 : COMPTES / BUDGET ================= -->
+  <section id="tab-comptes" class="tab-content">
+    <!-- 1. PAGE D'ACCUEIL DU BUDGET : LISTE DES COMPTES -->
+    <div id="budget-accounts-view">
+      <div class="accounts-overview-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 style="font-size: 1.25rem; font-weight: 800;">Mes Comptes</h2>
+            <span style="color: var(--text-muted); font-size: 0.85rem;">Sélectionnez un compte pour afficher ses opérations</span>
+          </div>
+          <button class="btn-primary" onclick="openAccountModal(null)">+ Nouveau Compte</button>
+        </div>
+        <div class="accounts-cards-grid" id="accountsCardsGrid"></div>
+      </div>
+    </div>
+
+    <!-- 2. VUE DÉTAILLÉE : OPÉRATIONS ET GESTION DU COMPTE -->
+    <div id="budget-detail-view" class="hidden" style="display: flex; flex-direction: column; gap: 16px;">
+      <!-- Bouton Retour et Titre du compte -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <button class="btn-nav" onclick="showBudgetAccountsView()">⬅ Changer de compte</button>
+        <span style="font-weight: 800; font-size: 1.15rem;" id="activeAccountNameLabel">Compte</span>
+      </div>
+
+      <!-- Soldes réel et estimé côte à côte -->
+      <div class="grid-cards">
+        <div class="card">
+          <div class="card-title">Solde réel à ce jour</div>
+          <div class="card-value val-real" id="realBalance">0,00 €</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Solde fin de mois (estimé)</div>
+          <div class="card-value val-forecast" id="forecastBalance">0,00 €</div>
+        </div>
+      </div>
+
+      <!-- Actions et Navigation par mois -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <button class="btn-primary" onclick="openTxModal()">+ Opération</button>
+          
+          <!-- Menu déroulant Options -->
+          <div class="dropdown-container">
+            <button class="btn-nav" onclick="toggleBudgetOptions(event)">⚙️ Options ▼</button>
+            <div id="budget-options-menu" class="dropdown-menu">
+              <button class="dropdown-item" onclick="openBreakdownModal(); toggleBudgetOptions(event);">📊 Synthèse du mois</button>
+              <button class="dropdown-item" onclick="openRecurringModal(); toggleBudgetOptions(event);">🔄 Gérer les récurrences</button>
+              <button class="dropdown-item" onclick="openEditActiveAccountModal(); toggleBudgetOptions(event);">⚙️ Paramètres du compte</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn-nav" id="prevMonth" onclick="changeMonth(-1)">&lt;</button>
+          <h2 id="currentMonthLabel" style="min-width: 170px; text-align: center; line-height: 1.2;"></h2>
+          <button class="btn-nav" id="nextMonth" onclick="changeMonth(1)">&gt;</button>
+        </div>
+      </div>
+
+      <!-- Tableau des opérations -->
+      <div class="table-container">
+        <div class="table-header">
+          <h3 style="font-size: 1rem;">Opérations du mois</h3>
+          <label class="checkbox-label">
+            <input type="checkbox" id="toggleCleared" onchange="toggleShowCleared()"> Afficher les opérations pointées
+          </label>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;">Pointé</th>
+                <th>Date</th>
+                <th>Description</th>
+                <th style="text-align: right;">Montant</th>
+                <th style="width: 100px; text-align: right; padding-right: 14px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="txTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ONGLET 2 : MISSIONS ENFANTS ================= -->
+  <section id="tab-missions" class="tab-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 style="font-size: 1.25rem; font-weight: 800;">Étoiles &amp; Privilèges</h2>
+      <button class="kbtn kbtn-secondary" id="btn-parent-mode" onclick="toggleParentMode()">⚙️ Espace Parents</button>
+    </div>
+
+    <div class="kids-bar" id="kids-bar"></div>
+
+    <div id="child-view">
+      <div id="kid-dashboard">
+        <div class="score-card" id="kid-score-card">
+          <div class="level-badge" id="active-kid-level">Niveau 1</div>
+          <div id="active-kid-name" style="font-weight: 600; font-size: 1.15rem;"></div>
+          <div class="stars"><span id="active-kid-stars">0</span> ⭐</div>
+          <div style="font-size: 0.8rem; margin-top: 8px; display: flex; justify-content: space-between;">
+            <span>Progrès (Niveau suivant)</span>
+            <span id="active-kid-xp">0/10 XP</span>
+          </div>
+          <div class="progress-container">
+            <div class="progress-fill" id="active-kid-progress"></div>
+          </div>
+        </div>
+
+        <div class="kids-subtabs">
+          <button class="kids-subtab-btn active" id="btn-tab-missions" onclick="switchKidSubTab('missions')">Missions</button>
+          <button class="kids-subtab-btn" id="btn-tab-rewards" onclick="switchKidSubTab('rewards')">Boutique</button>
+          <button class="kids-subtab-btn" id="btn-tab-family" onclick="switchKidSubTab('family')">Cagnotte 👨‍👩‍👧‍👦</button>
+        </div>
+
+        <div id="tab-missions-sub" class="list-tasks"></div>
+        <div id="tab-rewards-sub" class="list-tasks hidden"></div>
+
+        <div id="tab-family-sub" class="list-tasks hidden">
+          <div class="family-card">
+            <h2 style="font-size: 1.15rem;">Cagnotte de la Famille</h2>
+            <div class="stars"><span id="common-stars">0</span> ⭐</div>
+            <p style="font-size: 0.85rem; margin-bottom: 12px; opacity: 0.9;">Mettez vos étoiles en commun pour débloquer des super récompenses collectives !</p>
+            <button class="kbtn kbtn-family" onclick="donateToCommon()">💖 Donner mes étoiles</button>
+          </div>
+          <h3 style="font-size: 1rem; margin-top: 8px;">Récompenses Familiales</h3>
+          <div id="family-rewards-list" class="list-tasks" style="margin-top: 8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mode Parent -->
+    <div id="parent-view" class="parent-panel hidden">
+      <!-- 1. VUE PRINCIPALE ESPACE PARENTS (Sans les listes de configuration) -->
+      <div id="parent-main-view">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+          <h3 style="font-size: 1.15rem; font-weight: 800;">Espace Parents</h3>
+          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+            <!-- Bouton Options avec menu déroulant vers chaque page dédiée -->
+            <div class="dropdown-container">
+              <button class="kbtn kbtn-secondary kbtn-small" onclick="toggleParentOptions(event)">⚙️ Options ▼</button>
+              <div id="parent-options-menu" class="dropdown-menu">
+                <button class="dropdown-item" onclick="openParentDomainPage('kids'); toggleParentOptions(event);">👦 Profils Enfants</button>
+                <button class="dropdown-item" onclick="openParentDomainPage('missions'); toggleParentOptions(event);">✅ Missions Évolutives</button>
+                <button class="dropdown-item" onclick="openParentDomainPage('rewards'); toggleParentOptions(event);">🎁 Récompenses</button>
+              </div>
+            </div>
+            <button class="kbtn kbtn-edit kbtn-small" onclick="changePin()">🔒 Code PIN</button>
+            <button class="kbtn kbtn-secondary kbtn-small" onclick="exitParentMode()">Quitter le mode parent</button>
+          </div>
+        </div>
+
+        <h4 style="font-size: 1rem; margin-bottom: 10px;">Validations en attente</h4>
+        <div id="pending-list"></div>
+
+        <hr style="margin: 18px 0; border: none; border-top: 1px solid var(--border);">
+
+        <div class="config-header">
+          <h4 style="font-size: 0.95rem;">🏠 Garde Alternée (Présence)</h4>
+        </div>
+        <div id="config-presence-list"></div>
+
+        <hr style="margin: 18px 0; border: none; border-top: 1px solid var(--border);">
+
+        <h4 style="font-size: 0.95rem; margin-bottom: 10px;">Ajuster manuellement les étoiles</h4>
+        <div id="adjust-stars-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 12px; background: rgba(236,72,153,0.15); padding: 10px; border-radius: 8px;">
+          <span style="color: var(--family); font-weight: bold;">Cagnotte Famille (<span id="parent-common-stars">0</span> ⭐)</span>
+          <div style="display:flex; gap:4px;">
+            <button class="kbtn kbtn-secondary kbtn-small" onclick="adjustCommonStars(-1)">-1</button>
+            <button class="kbtn kbtn-secondary kbtn-small" onclick="adjustCommonStars(1)">+1</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. NOUVELLE PAGE DÉDIÉE : PROFILS ENFANTS -->
+      <div id="parent-page-kids" class="hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <button class="btn-nav" onclick="closeParentDomainPage()">⬅ Retour Espace Parents</button>
+          <button class="kbtn kbtn-primary kbtn-small" onclick="addKid()">+ Ajouter un enfant</button>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-wrap: wrap;">
+          <button class="btn-nav" style="border-color: var(--kid-primary); color: var(--kid-primary); font-weight: 700;" onclick="openParentDomainPage('kids')">👦 Profils Enfants</button>
+          <button class="btn-nav" onclick="openParentDomainPage('missions')">✅ Missions</button>
+          <button class="btn-nav" onclick="openParentDomainPage('rewards')">🎁 Récompenses</button>
+        </div>
+
+        <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 12px;">👦 Configuration des Profils Enfants</h3>
+        <div id="config-kids-list"></div>
+      </div>
+
+      <!-- 3. NOUVELLE PAGE DÉDIÉE : MISSIONS ÉVOLUTIVES -->
+      <div id="parent-page-missions" class="hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <button class="btn-nav" onclick="closeParentDomainPage()">⬅ Retour Espace Parents</button>
+          <button class="kbtn kbtn-primary kbtn-small" onclick="addMission()">+ Ajouter une mission</button>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-wrap: wrap;">
+          <button class="btn-nav" onclick="openParentDomainPage('kids')">👦 Profils Enfants</button>
+          <button class="btn-nav" style="border-color: var(--kid-primary); color: var(--kid-primary); font-weight: 700;" onclick="openParentDomainPage('missions')">✅ Missions</button>
+          <button class="btn-nav" onclick="openParentDomainPage('rewards')">🎁 Récompenses</button>
+        </div>
+
+        <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 12px;">✅ Configuration des Missions Évolutives</h3>
+        <div id="config-missions-list"></div>
+      </div>
+
+      <!-- 4. NOUVELLE PAGE DÉDIÉE : RÉCOMPENSES -->
+      <div id="parent-page-rewards" class="hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <button class="btn-nav" onclick="closeParentDomainPage()">⬅ Retour Espace Parents</button>
+          <button class="kbtn kbtn-primary kbtn-small" onclick="addReward()">+ Ajouter une récompense</button>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-wrap: wrap;">
+          <button class="btn-nav" onclick="openParentDomainPage('kids')">👦 Profils Enfants</button>
+          <button class="btn-nav" onclick="openParentDomainPage('missions')">✅ Missions</button>
+          <button class="btn-nav" style="border-color: var(--kid-primary); color: var(--kid-primary); font-weight: 700;" onclick="openParentDomainPage('rewards')">🎁 Récompenses</button>
+        </div>
+
+        <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 12px;">🎁 Configuration des Récompenses</h3>
+        <div id="config-rewards-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ONGLET 3 : DOCUMENTS ================= -->
+  <section id="tab-documents" class="tab-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button class="btn-nav" onclick="openFolderModal()">📁 Gérer les dossiers</button>
+      </div>
+      <button class="btn-primary" onclick="openDocModal()">+ Ajouter un document</button>
+    </div>
+
+    <!-- Barre des dossiers -->
+    <div class="folders-bar" id="foldersBar"></div>
+
+    <div class="table-container">
+      <div class="table-header">
+        <h3 style="font-size: 1rem;" id="currentFolderHeader">Documents</h3>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">Stockage local sécurisé</span>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Nom du document</th>
+              <th>Dossier</th>
+              <th>Ajouté le</th>
+              <th>Taille</th>
+              <th style="text-align: right; width: 130px;">Fichier</th>
+              <th style="width: 45px;"></th>
+            </tr>
+          </thead>
+          <tbody id="docsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ONGLET 4 : MENUS & REPAS ================= -->
+  <section id="tab-meals" class="tab-content">
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn-nav" onclick="autoSuggestWeek()">🎲 Suggérer la semaine</button>
+        <button class="btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="clearWholeWeek()">🗑️ Vider</button>
+        <button class="btn-primary" onclick="openRecipeEditModal()">+ Nouvelle recette</button>
+        <button class="btn-nav" onclick="openGroceryModal()">🛒 Liste de courses</button>
+        <button class="btn-nav" onclick="printFridgeMenu()">📄 Menu Frigo (PDF)</button>
+        <button class="btn-primary" onclick="printRecipeBook()">📖 Cahier de recettes (PDF)</button>
+      </div>
+
+    <!-- Sélecteur de portions par défaut -->
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px; background: var(--surface); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      <span style="font-size: 0.9rem; font-weight: 600;">Convives par défaut :</span>
+      <input type="number" id="defaultPortionsInput" min="1" max="15" value="4" style="width: 60px; padding: 4px 8px;" onchange="updateDefaultPortions(this.value)">
+      <span style="font-size: 0.8rem; color: var(--text-muted);">(ajustable pour chaque repas ci-dessous)</span>
+    </div>
+
+    <!-- Grille des repas de la semaine -->
+    <div class="meals-grid" id="mealsGrid"></div>
+  </section>
+</div>
+
+<!-- ================= MODALE SÉLECTION DE RECETTE ================= -->
+<div class="modal-overlay" id="mealPickerModal">
+  <div class="modal" style="width: 500px; max-height: 85vh;">
+    <div class="modal-header">
+      <h3 id="mealPickerTitle">Choisir un repas</h3>
+      <button class="modal-close" onclick="closeMealPickerModal()">✕</button>
+    </div>
+    <div class="form-vertical" style="gap: 12px;">
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <input type="text" id="recipeSearchInput" placeholder="Rechercher une recette ou un ingrédient..." oninput="renderRecipesList()" style="flex: 1; min-width: 160px;">
+        <select id="recipeCategoryFilter" onchange="renderRecipesList()">
+          <option value="all">Toutes catégories</option>
+          <option value="Quotidien">Quotidien</option>
+          <option value="Réconfort">Réconfort</option>
+          <option value="Léger & Salade">Léger & Salade</option>
+          <option value="Pâtes & Riz">Pâtes & Riz</option>
+          <option value="Monde">Monde</option>
+          <option value="Végétarien">Végétarien</option>
+          <option value="Week-end">Week-end</option>
+        </select>
+        <button type="button" class="btn-primary btn-small" onclick="openRecipeEditModal()">+ Créer</button>
+      </div>
+
+      <div id="recipePickerList" style="display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto;"></div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+        <button type="button" class="btn-danger btn-small" onclick="clearCurrentMealSlot()">🗑️ Retirer le plat</button>
+        <button type="button" class="btn-nav" onclick="closeMealPickerModal()">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODALE CRÉATION / ÉDITION DE RECETTE ================= -->
+<div class="modal-overlay" id="recipeEditModal">
+  <div class="modal" style="width: 520px; max-height: 90vh;">
+    <div class="modal-header">
+      <h3 id="recipeEditModalTitle">Nouvelle recette</h3>
+      <button class="modal-close" onclick="closeRecipeEditModal()">✕</button>
+    </div>
+    <form id="recipeEditForm" class="form-vertical" onsubmit="saveRecipe(event)">
+      <input type="hidden" id="editRecipeId">
+      
+      <div style="display: flex; gap: 10px;">
+        <div class="form-group" style="width: 100px;">
+          <label>Icône(s)</label>
+          <input type="text" id="recipeFormIcon" value="🍽️" placeholder="ex: 🍝🧀" required style="text-align: center; font-size: 1.2rem;">
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Nom du plat</label>
+          <input type="text" id="recipeFormTitle" placeholder="Ex. Gratin de courgettes" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Catégorie</label>
+        <select id="recipeFormCategory">
+          <option value="Quotidien">Quotidien</option>
+          <option value="Réconfort">Réconfort</option>
+          <option value="Léger & Salade">Léger & Salade</option>
+          <option value="Pâtes & Riz">Pâtes & Riz</option>
+          <option value="Monde">Monde</option>
+          <option value="Végétarien">Végétarien</option>
+          <option value="Week-end">Week-end</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label style="margin: 0;">Ingrédients (base 4 personnes)</label>
+          <button type="button" class="btn-nav" style="padding: 2px 8px; font-size: 0.75rem;" onclick="addIngredientRow()">+ Ingrédient</button>
+        </div>
+        <div id="recipeIngredientsContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto;"></div>
+      </div>
+
+      <div class="form-group">
+        <label>Étapes de préparation</label>
+        <textarea id="recipeFormSteps" rows="3" placeholder="Décrivez la préparation..." style="width: 100%; resize: vertical; padding: 8px; font-family: inherit; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text);"></textarea>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="submit" class="btn-primary" style="flex: 1; height: 42px;">Enregistrer la recette</button>
+        <button type="button" class="btn-danger" id="btnDeleteRecipe" style="display: none;" onclick="deleteCurrentRecipe()">Supprimer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ================= MODALE LISTE DE COURSES ================= -->
+<div class="modal-overlay" id="groceryModal">
+  <div class="modal" style="width: 480px; max-height: 85vh;">
+    <div class="modal-header">
+      <h3>🛒 Liste de courses de la semaine</h3>
+      <button class="modal-close" onclick="closeGroceryModal()">✕</button>
+    </div>
+    <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.85rem; color: var(--text-muted);" id="groceryItemsCount"></span>
+      <button class="btn-nav" onclick="copyGroceryToClipboard()">📋 Copier le texte</button>
+    </div>
+    <div id="groceryListContainer" style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;"></div>
+  </div>
+</div>
+
+<!-- ================= MODALE CODE PIN (CONNEXION) ================= -->
+<div id="pin-login-modal" class="modal-overlay">
+  <div class="modal" style="width: 320px; text-align: center;">
+    <h3 style="font-size: 1.15rem; margin-bottom: 4px;" id="loginPinTitle">Accès sécurisé</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted);">Saisissez votre code PIN :</p>
+    <input type="password" id="login-pin-input" class="pin-input" maxlength="12" inputmode="numeric" placeholder="••••" onkeyup="if(event.key === 'Enter') submitLoginPin()">
+    <div style="display: flex; gap: 8px; justify-content: center;">
+      <button class="btn-nav" onclick="closeLoginPinModal()">Annuler</button>
+      <button class="btn-primary" onclick="submitLoginPin()">Valider</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODALE CODE PIN (ESPACE PARENTS) ================= -->
+<div id="parent-pin-modal" class="modal-overlay">
+  <div class="modal" style="width: 320px; text-align: center;">
+    <h3 style="font-size: 1.15rem; margin-bottom: 4px;">Espace Parents</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted);">Saisissez votre code PIN :</p>
+    <input type="password" id="parent-pin-input" class="pin-input" maxlength="12" inputmode="numeric" placeholder="••••" onkeyup="if(event.key === 'Enter') submitParentPin()">
+    <div style="display: flex; gap: 8px; justify-content: center;">
+      <button class="btn-nav" onclick="closeParentPinModal()">Annuler</button>
+      <button class="btn-primary" onclick="submitParentPin()">Valider</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODALE MODIFICATION DU CODE PIN ================= -->
+<div id="change-pin-modal" class="modal-overlay">
+  <div class="modal" style="width: 320px; text-align: center;">
+    <h3 style="font-size: 1.15rem; margin-bottom: 4px;">Modifier le code PIN</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Espace Parents</p>
+
+    <form id="changePinForm" onsubmit="submitChangePin(event)" class="form-vertical" style="gap: 10px; text-align: left;">
+      <div class="form-group">
+        <label style="font-size: 0.8rem;">Code PIN actuel :</label>
+        <input type="password" id="changePinOld" class="pin-input" style="font-size: 1.2rem; letter-spacing: 6px; padding: 8px; margin: 2px 0;" maxlength="12" inputmode="numeric" placeholder="••••" required>
+      </div>
+      <div class="form-group">
+        <label style="font-size: 0.8rem;">Nouveau code PIN :</label>
+        <input type="password" id="changePinNew" class="pin-input" style="font-size: 1.2rem; letter-spacing: 6px; padding: 8px; margin: 2px 0;" maxlength="12" inputmode="numeric" placeholder="••••" required>
+      </div>
+      <div class="form-group">
+        <label style="font-size: 0.8rem;">Confirmer le nouveau code :</label>
+        <input type="password" id="changePinConfirm" class="pin-input" style="font-size: 1.2rem; letter-spacing: 6px; padding: 8px; margin: 2px 0;" maxlength="12" inputmode="numeric" placeholder="••••" required>
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: center; margin-top: 8px;">
+        <button type="button" class="btn-nav" onclick="closeChangePinModal()">Annuler</button>
+        <button type="submit" class="btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ================= MODALE AJOUT / ÉDITION COMPTE BANCAIRE ================= -->
+<div class="modal-overlay" id="accountModal">
+  <div class="modal" style="width: 420px;">
+    <div class="modal-header">
+      <h3 id="accountModalTitle">Nouveau Compte</h3>
+      <button class="modal-close" onclick="closeAccountModal()">✕</button>
+    </div>
+    <form id="accountForm" class="form-vertical">
+      <input type="hidden" id="editAccountId">
+      <div class="form-group">
+        <label>Nom du compte</label>
+        <input type="text" id="accFormName" placeholder="Ex. Compte Courant, Livret A, Épargne..." required>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <div class="form-group" style="width: 80px;">
+          <label>Icône</label>
+          <input type="text" id="accFormIcon" value="💳" required style="text-align: center; font-size: 1.2rem;">
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Solde initial de départ (€)</label>
+          <input type="number" id="accFormBalance" step="0.01" value="0.00" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Partage et visibilité du compte</label>
+        <select id="accFormSharing">
+          <option value="private">🔒 Strictement privé (Moi seul)</option>
+          <option value="parents">👥 Partagé entre parents</option>
+          <option value="all">🌍 Partagé avec toute la famille (enfants compris)</option>
+        </select>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Ce réglage est indépendant pour chaque compte.</small>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="submit" class="btn-primary" style="flex: 1; height: 42px;">Enregistrer le compte</button>
+        <button type="button" class="btn-danger" id="btnDeleteAccount" style="display:none;" onclick="deleteCurrentActiveAccount()">Supprimer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ================= MODALE ÉDITION DU PROFIL ================= -->
+<div class="modal-overlay" id="profileEditModal">
+  <div class="modal" style="width: 400px;">
+    <div class="modal-header">
+      <h3 id="profileEditModalTitle">Éditer le profil</h3>
+      <button class="modal-close" onclick="closeProfileEditModal()">✕</button>
+    </div>
+    <form id="profileEditForm" class="form-vertical" onsubmit="saveProfileEdit(event)">
+      <input type="hidden" id="editUserId">
+      <div class="form-group">
+        <label>Nom ou prénom</label>
+        <input type="text" id="editUserName" required>
+      </div>
+      <div class="form-group">
+        <label>Avatar (Emoji)</label>
+        <input type="text" id="editUserAvatar" style="width: 80px;" required>
+      </div>
+      <div class="form-group">
+        <label>Rôle</label>
+        <select id="editUserRole">
+          <option value="parent">Parent (Accès administration &amp; gestion)</option>
+          <option value="child">Enfant</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Code PIN de sécurité</label>
+        <input type="password" id="editUserPin" maxlength="12" placeholder="Laisser vide pour désactiver">
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Requis pour les comptes parents.</small>
+      </div>
+      <button type="submit" class="btn-primary" style="height: 42px; margin-top: 8px;">Enregistrer le profil</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= MODALE DOSSIERS ================= -->
+<div class="modal-overlay" id="folderModal">
+  <div class="modal" style="width: 420px;">
+    <div class="modal-header">
+      <h3>Dossiers de documents</h3>
+      <button class="modal-close" onclick="closeFolderModal()">✕</button>
+    </div>
+    <form id="folderForm" class="form-vertical" style="border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 14px;">
+      <div class="form-group">
+        <label>Nom du dossier</label>
+        <input type="text" id="newFolderName" placeholder="Ex. Impôts, Bulletins, Maison..." required>
+      </div>
+      <div class="form-group">
+        <label>Type de dossier</label>
+        <select id="newFolderScope">
+          <option value="shared">🌍 Commun (Visible par la famille)</option>
+          <option value="private">🔒 Privé (Visible uniquement par moi)</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">Créer le dossier</button>
+    </form>
+    <div id="foldersList" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;"></div>
+  </div>
+</div>
+
+<!-- ================= MODALE PERSONNALISATION DASHBOARD ================= -->
+<div class="modal-overlay" id="dashboardCustomModal">
+  <div class="modal" style="width: 380px;">
+    <div class="modal-header">
+      <h3>Personnaliser l'accueil</h3>
+      <button class="modal-close" onclick="closeDashboardCustomModal()">✕</button>
+    </div>
+    <div class="form-vertical">
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Choisissez les blocs à afficher sur votre tableau de bord :</p>
+      <div id="dashCustomCheckboxes" style="display: flex; flex-direction: column; gap: 10px;"></div>
+      <button class="btn-primary" style="margin-top: 10px;" onclick="closeDashboardCustomModal()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODALES FINANCES & PARAMÈTRES ================= -->
+<div class="modal-overlay" id="txModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="txModalTitle">Nouvelle Opération</h3>
+      <button class="modal-close" onclick="closeTxModal()">✕</button>
+    </div>
+    <form id="txForm" class="form-vertical">
+      <input type="hidden" id="editTxId">
+      <div class="form-group">
+        <label>Type</label>
+        <select id="txType"><option value="expense">Dépense</option><option value="income">Revenu</option></select>
+      </div>
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between;">
+          <label>Catégorie (optionnel)</label>
+          <button type="button" class="btn-link" onclick="openCatModal()">Gérer</button>
+        </div>
+        <select id="txCategory"></select>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="txTitle" required placeholder="Courses, Salaire, etc.">
+      </div>
+      <div class="form-group">
+        <label>Montant (€)</label>
+        <input type="number" id="txAmount" step="0.01" min="0.01" required placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="txDate" required>
+      </div>
+      <div class="form-group" id="txRecurringGroup">
+        <label class="checkbox-label">
+          <input type="checkbox" id="txRecurring"> Répéter chaque mois
+        </label>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="submit" class="btn-primary" style="flex: 1; height: 42px;">Enregistrer</button>
+        <button type="button" class="btn-danger" id="btnDeleteTxModal" style="display: none;" onclick="deleteCurrentModalTx()">Supprimer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="breakdownModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Répartition des dépenses</h3>
+      <button class="modal-close" onclick="closeBreakdownModal()">✕</button>
+    </div>
+    <div id="summaryGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"></div>
+    <div id="noSummaryMessage" style="color: var(--text-muted); text-align: center; padding: 20px; display: none;">Aucune dépense.</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="recurringModal">
+  <div class="modal" style="width: 500px;">
+    <div class="modal-header">
+      <h3>Opérations récurrentes</h3>
+      <button class="modal-close" onclick="closeRecurringModal()">✕</button>
+    </div>
+    <div id="recurringList" style="display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto;"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="catModal">
+  <div class="modal" style="width: 380px;">
+    <div class="modal-header">
+      <h3>Catégories du budget</h3>
+      <button class="modal-close" onclick="closeCatModal()">✕</button>
+    </div>
+    <form id="catForm" style="display: flex; gap: 8px; margin-bottom: 12px;">
+      <input type="text" id="newCatName" placeholder="Nouvelle..." required style="flex: 1;">
+      <button type="submit" class="btn-primary">Ajouter</button>
+    </form>
+    <div id="modalCatList" style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto;"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="docModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Ajouter un document</h3>
+      <button class="modal-close" onclick="closeDocModal()">✕</button>
+    </div>
+    <form id="docForm" class="form-vertical">
+      <div class="form-group">
+        <label>Nom du document</label>
+        <input type="text" id="docName" placeholder="Ex. Carte d'identité Léa..." required>
+      </div>
+      <div class="form-group">
+        <label>Dossier de destination</label>
+        <select id="docFolderSelect" required></select>
+      </div>
+      <div class="form-group">
+        <label>Fichier (PDF, image, etc.)</label>
+        <input type="file" id="docFileInput" required style="padding: 6px;">
+      </div>
+      <button type="submit" class="btn-primary" style="height: 42px;">Enregistrer le document</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= PARAMÈTRES GÉNÉRAUX ================= -->
+<div class="modal-overlay" id="generalSettingsModal">
+  <div class="modal" style="width: 440px;">
+    <div class="modal-header">
+      <h3>Paramètres Généraux</h3>
+      <button class="modal-close" onclick="closeGeneralSettingsModal()">✕</button>
+    </div>
+    <div class="form-vertical">
+      <div class="form-group">
+        <label>Thème visuel</label>
+        <select id="themeSelect" onchange="updateGeneralSettings()">
+          <option value="dark">🌙 Mode Sombre</option>
+          <option value="light">☀️ Mode Clair</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Couleur d'accentuation</label>
+        <input type="color" id="primaryColorSelect" onchange="updateGeneralSettings()" style="width: 100%; height: 42px; cursor: pointer;">
+      </div>
+
+      <hr style="margin: 10px 0; border: none; border-top: 1px solid var(--border);">
+      
+      <div id="adminProfileTitle" style="display:flex; justify-content:space-between; align-items:center;">
+        <h4 style="margin:0;">Comptes &amp; Profils</h4>
+        <button class="btn-primary btn-small" style="padding:4px 8px; font-size:0.75rem;" onclick="openProfileEditModal(null)">+ Nouveau profil</button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: -6px;">Gérez les noms, codes PIN et rôles de chacun.</p>
+      <div id="appUsersList" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts JS de l'application -->
+<script src="js/auth.js"></script>
+<script src="js/budget.js"></script>
+<script src="js/mission.js"></script>
+<script src="js/documents.js"></script>
+<script src="js/meals.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

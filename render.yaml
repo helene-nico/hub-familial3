@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: hub-familial
+    runtime: docker
+    plan: starter
+    disk:
+      name: donnees-famille
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
