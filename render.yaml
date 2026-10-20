@@ -2,11 +2,9 @@ services:
   - type: web
     name: hub-familial
     runtime: docker
-    plan: starter
-    disk:
-      name: donnees-famille
-      mountPath: /data
-      sizeGB: 1
+    plan: free
     envVars:
-      - key: DATA_DIR
-        value: /data
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
