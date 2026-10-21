@@ -14,7 +14,7 @@ function dispatchSync(key, value) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: v })
-      }).catch(err => console.error(`Erreur synchro ${k}:`, err));
+      }).catch(err => console.error(`Erreur synchro ${k} :`, err));
     });
   }, 300);
 }
@@ -36,7 +36,14 @@ localStorage.removeItem = function(key) {
 // Récupération de l'état serveur avant l'exécution du code applicatif
 (async function initHub() {
   try {
-    const res = await fetch('/api/sync');
+    const res = await fetch('/api/sync', {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
+
     if (res.ok) {
       const remoteData = await res.json();
       Object.entries(remoteData).forEach(([k, v]) => {
