@@ -65,7 +65,7 @@ async function callAI(messages) {
 
  if (AI_KEY.startsWith('gsk_')) {
     apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-    model = 'llama-3.1-8b-instant'; // Modèle actif et gratuit pour tous les comptes Groq
+    model = 'hub familial'; // Modèle actif et gratuit pour tous les comptes Groq
   }
 
   const response = await fetch(apiUrl, {
