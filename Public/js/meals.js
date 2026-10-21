@@ -55,7 +55,7 @@ function getAllRecipes() {
   return [...customRecipes, ...filteredDefaults];
 }
 
-// Semaine débutant le Vendredi Soir et se terminant le Vendredi Midi suivant
+// Semaine débutant le Vendredi Soir et finissant le Vendredi Midi
 const MEAL_DAYS = [
   { id: 'fri_start', name: 'Vendredi', slots: [{ id: 'fri_eve', label: 'Soir' }] },
   { id: 'sat', name: 'Samedi', slots: [{ id: 'sat_mid', label: 'Midi' }, { id: 'sat_eve', label: 'Soir' }] },
@@ -147,7 +147,7 @@ window.updateMealPortions = function(slotId, val) {
   saveMealsPlan();
 };
 
-// --- SUGGESTION D'UN REPAS VIA IA ---
+// --- SUGGESTION RAPIDE D'UN REPAS VIA IA (BOUTON 🔄 IA) ---
 window.swapMealSlot = async function(slotId, event) {
   if (event) {
     event.stopPropagation();
@@ -183,11 +183,9 @@ window.swapMealSlot = async function(slotId, event) {
 
     const recipe = await res.json();
 
-    // Enregistrement local de la recette reçue
     customRecipes.push(recipe);
     localStorage.setItem('custom_recipes', JSON.stringify(customRecipes));
 
-    // Assignation au créneau
     const currentMeal = weeklyPlan[slotId];
     weeklyPlan[slotId] = {
       recipeId: recipe.id,
@@ -207,14 +205,23 @@ window.swapMealSlot = async function(slotId, event) {
   }
 };
 
-// --- GESTION DU CHOIX DE RECETTE ---
+// --- GESTION DU CHOIX DE RECETTE ET RECHERCHE IA ---
 window.openMealPicker = function(slotId, slotTitle) {
   activePickingSlotId = slotId;
   const titleEl = document.getElementById('mealPickerTitle');
   if (titleEl) titleEl.textContent = `Repas du ${slotTitle}`;
   
   const searchInput = document.getElementById('recipeSearchInput');
-  if (searchInput) searchInput.value = '';
+  if (searchInput) {
+    searchInput.value = '';
+    // Déclenchement automatique de la recherche IA en appuyant sur Entrée
+    searchInput.onkeydown = function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        window.generateDishFromSearchAI();
+      }
+    };
+  }
   
   renderRecipesList();
   document.getElementById('mealPickerModal').style.display = 'flex';
@@ -225,10 +232,12 @@ window.closeMealPickerModal = function() {
   activePickingSlotId = null;
 };
 
+// Recherche intelligente : affiche les résultats locaux + option de génération IA
 window.renderRecipesList = function() {
   const container = document.getElementById('recipePickerList');
   if (!container) return;
-  const search = (document.getElementById('recipeSearchInput')?.value || '').toLowerCase().trim();
+  const rawSearch = (document.getElementById('recipeSearchInput')?.value || '').trim();
+  const search = rawSearch.toLowerCase();
   const cat = document.getElementById('recipeCategoryFilter')?.value || 'all';
 
   const allRecipes = getAllRecipes();
@@ -239,12 +248,46 @@ window.renderRecipesList = function() {
     return matchCat && matchSearch;
   });
 
+  // Encart de génération IA lorsqu'un texte est saisi
+  let aiCardHtml = '';
+  if (rawSearch.length > 1) {
+    const safeSearch = rawSearch.replace(/"/g, '&quot;');
+    aiCardHtml = `
+      <div class="recipe-pick-item" onclick="generateDishFromSearchAI('${safeSearch}')" style="background:var(--surface); border:1px dashed var(--primary); cursor:pointer; padding:10px 14px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:1.8rem;">✨</span>
+          <div>
+            <div style="font-weight:700; color:var(--primary); font-size:0.95rem;">Demander la recette à l'IA</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Créer « ${safeSearch} » avec ses ingrédients et étapes</div>
+          </div>
+        </div>
+        <button type="button" class="btn-primary btn-small" style="pointer-events:none;">Générer</button>
+      </div>
+    `;
+  }
+
+  // Aucun résultat trouvé dans la base locale
   if (filtered.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-muted); padding:10px; text-align:center;">Aucune recette trouvée.</p>';
+    if (rawSearch.length > 0) {
+      const safeSearch = rawSearch.replace(/'/g, "\\'");
+      container.innerHTML = `
+        <div style="text-align:center; padding:25px 15px;">
+          <p style="color:var(--text-muted); margin-bottom:12px; font-size:0.95rem;">
+            Aucune recette locale ne correspond à « <b>${rawSearch}</b> ».
+          </p>
+          <button type="button" class="btn-primary" onclick="generateDishFromSearchAI('${safeSearch}')" style="padding:10px 18px; font-size:0.95rem;">
+            ✨ Demander la recette de « ${rawSearch} » à l'IA
+          </button>
+        </div>
+      `;
+    } else {
+      container.innerHTML = '<p style="color:var(--text-muted); padding:10px; text-align:center;">Aucune recette trouvée.</p>';
+    }
     return;
   }
 
-  container.innerHTML = filtered.map(r => `
+  // Affichage de la suggestion IA suivie des recettes existantes
+  container.innerHTML = aiCardHtml + filtered.map(r => `
     <div class="recipe-pick-item" style="display:flex; justify-content:space-between; align-items:center;">
       <div onclick="selectRecipeForSlot('${r.id}')" style="display:flex; align-items:center; gap:12px; flex:1; cursor:pointer;">
         <span style="font-size:1.6rem;">${r.icon || '🍽️'}</span>
@@ -259,6 +302,65 @@ window.renderRecipesList = function() {
       </div>
     </div>
   `).join('');
+};
+
+// Génération ciblée du plat saisi via l'IA
+window.generateDishFromSearchAI = async function(dishNameOverride) {
+  const searchInput = document.getElementById('recipeSearchInput');
+  const dishName = (dishNameOverride || searchInput?.value || '').trim();
+
+  if (!dishName) {
+    alert("Veuillez saisir le nom d'un plat dans la barre de recherche.");
+    return;
+  }
+
+  const container = document.getElementById('recipePickerList');
+  if (container) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:35px 15px;">
+        <div style="font-size:2.5rem; margin-bottom:10px;">👨‍🍳</div>
+        <p style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">L'IA crée la recette de « ${dishName} »...</p>
+        <p style="font-size:0.85rem; color:var(--text-muted);">Sélection des ingrédients pour 4 personnes et des étapes</p>
+      </div>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/ai/suggest-meal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dishName })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Erreur serveur (${res.status})`);
+    }
+
+    const recipe = await res.json();
+
+    // Enregistrement de la nouvelle recette
+    customRecipes.push(recipe);
+    localStorage.setItem('custom_recipes', JSON.stringify(customRecipes));
+
+    // Si on est en train de choisir un repas pour un créneau, on l'assigne directement
+    if (activePickingSlotId) {
+      const currentPortions = weeklyPlan[activePickingSlotId]?.portions || defaultPortions;
+      weeklyPlan[activePickingSlotId] = {
+        recipeId: recipe.id,
+        customTitle: '',
+        portions: currentPortions
+      };
+      saveMealsPlan();
+      closeMealPickerModal();
+      renderMeals();
+    } else {
+      renderRecipesList();
+    }
+  } catch (err) {
+    alert("Impossible de générer cette recette : " + err.message);
+    renderRecipesList();
+  }
 };
 
 window.selectRecipeForSlot = function(recipeId) {
