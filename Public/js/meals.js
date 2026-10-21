@@ -54,13 +54,14 @@ function getAllRecipes() {
 }
 
 const MEAL_DAYS = [
-  { id: 'fri', name: 'Vendredi', slots: [{ id: 'fri_mid', label: 'Midi' }, { id: 'fri_eve', label: 'Soir' }] },
+  { id: 'fri_start', name: 'Vendredi', slots: [{ id: 'fri_eve', label: 'Soir' }] },
   { id: 'sat', name: 'Samedi', slots: [{ id: 'sat_mid', label: 'Midi' }, { id: 'sat_eve', label: 'Soir' }] },
   { id: 'sun', name: 'Dimanche', slots: [{ id: 'sun_mid', label: 'Midi' }, { id: 'sun_eve', label: 'Soir' }] },
   { id: 'mon', name: 'Lundi', slots: [{ id: 'mon_mid', label: 'Midi' }, { id: 'mon_eve', label: 'Soir' }] },
   { id: 'tue', name: 'Mardi', slots: [{ id: 'tue_mid', label: 'Midi' }, { id: 'tue_eve', label: 'Soir' }] },
   { id: 'wed', name: 'Mercredi', slots: [{ id: 'wed_mid', label: 'Midi' }, { id: 'wed_eve', label: 'Soir' }] },
-  { id: 'thu', name: 'Jeudi', slots: [{ id: 'thu_mid', label: 'Midi' }, { id: 'thu_eve', label: 'Soir' }] }
+  { id: 'thu', name: 'Jeudi', slots: [{ id: 'thu_mid', label: 'Midi' }, { id: 'thu_eve', label: 'Soir' }] },
+  { id: 'fri_end', name: 'Vendredi suivant', slots: [{ id: 'fri_mid', label: 'Midi' }] }
 ];
 
 let weeklyPlan = JSON.parse(localStorage.getItem('weekly_meals_plan')) || {};
