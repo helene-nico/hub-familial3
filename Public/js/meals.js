@@ -201,7 +201,6 @@ window.viewMealRecipe = function(slotId) {
     if (s) dayLabel = `${d.name} ${s.label}`;
   });
 
-  // Création dynamique de la modale si absente du HTML
   let modal = document.getElementById('recipeViewModal');
   if (!modal) {
     modal = document.createElement('div');
@@ -247,7 +246,7 @@ window.viewMealRecipe = function(slotId) {
           <span style="font-size: 0.8rem; color: var(--text-muted);">${dayLabel} • ${portions} convives</span>
         </div>
       </div>
-      <button class="modal-close" onclick="closeRecipeViewModal()">✕</button>
+      <button class="modal-close btn-nav btn-small" onclick="closeRecipeViewModal()">✕</button>
     </div>
 
     ${ingHtml}
@@ -841,8 +840,8 @@ window.copyGroceryToClipboard = function() {
   navigator.clipboard.writeText(textToCopy.trim()).then(() => alert("Liste de courses copiée dans le presse-papier !"));
 };
 
-// --- MENU FRIGO ---
-window.printFridgeMenu = function() {
+// --- MENU FRIGO : OUVERTURE EN VRAI PDF (SANS BOÎTE D'IMPRESSION) ---
+window.printFridgeMenu = async function() {
   let hasMeals = false;
   let rowsHtml = '';
   const allRecipes = getAllRecipes();
@@ -860,17 +859,17 @@ window.printFridgeMenu = function() {
         const portions = meal.portions || defaultPortions;
         rowsHtml += `
           <tr>
-            <td style="font-weight:700; width:140px; padding:15px; border-bottom:1px solid #ddd; vertical-align:middle; text-align:center;">
-              <div style="font-size:1.1rem; color:#111;">${day.name}</div>
-              <div style="font-size:0.85rem; color:#666; font-weight:normal; margin-top:4px;">${slot.label}</div>
+            <td style="font-weight:700; width:130px; padding:12px; border-bottom:1px solid #e2e8f0; vertical-align:middle; text-align:center;">
+              <div style="font-size:1.05rem; color:#0f172a;">${day.name}</div>
+              <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">${slot.label}</div>
             </td>
-            <td style="padding:15px; border-bottom:1px solid #ddd; vertical-align:middle;">
-              <div style="display:flex; align-items:center; gap:20px;">
-                <div style="font-size:3.5rem; line-height:1;">${icon}</div>
-                <div style="font-size:1.3rem; font-weight:600; color:#222; line-height:1.3;">${title}</div>
+            <td style="padding:12px; border-bottom:1px solid #e2e8f0; vertical-align:middle;">
+              <div style="display:flex; align-items:center; gap:14px;">
+                <div style="font-size:2.2rem; line-height:1;">${icon}</div>
+                <div style="font-size:1.15rem; font-weight:700; color:#1e293b;">${title}</div>
               </div>
             </td>
-            <td style="width:100px; text-align:center; padding:15px; border-bottom:1px solid #ddd; vertical-align:middle; font-size:1.1rem;">
+            <td style="width:90px; text-align:center; padding:12px; border-bottom:1px solid #e2e8f0; vertical-align:middle; font-size:1rem; color:#334155;">
               👥 <b>${portions}</b>
             </td>
           </tr>
@@ -884,45 +883,85 @@ window.printFridgeMenu = function() {
     return;
   }
 
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Menu de la Semaine - Frigo</title>
-      <style>
-        body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 25px; color: #111; margin: 0; }
-        h1 { text-align: center; font-size: 2rem; margin-bottom: 25px; color: #2563eb; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
-        th { background: #eff6ff; text-align: center; padding: 12px; border-bottom: 3px solid #bfdbfe; font-size: 1rem; color: #1e3a8a; text-transform: uppercase; }
-        @media print {
-          @page { margin: 10mm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        }
-      </style>
-    </head>
-    <body>
-      <h1>📋 Menu de la Semaine</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>Jour</th>
-            <th style="text-align:left;">Plat prévu</th>
-            <th style="text-align:center;">Convives</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml}
-        </tbody>
-      </table>
-      <script>
-        window.onload = function() { window.print(); }
-      </script>
-    </body>
-    </html>
-  `);
-  printWindow.document.close();
+  const pdfTab = window.open('', '_blank');
+  if (pdfTab) {
+    pdfTab.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Génération du PDF...</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; color: #333; margin: 0; background: #f8fafc; }
+          .loader { font-size: 2.8rem; margin-bottom: 16px; animation: spin 2s linear infinite; }
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        </style>
+      </head>
+      <body>
+        <div class="loader">⏳</div>
+        <h2 style="margin: 0 0 8px 0; color: #1e293b;">Génération du Menu de la Semaine...</h2>
+        <p style="color: #64748b; margin: 0;">Création du PDF en cours, veuillez patienter.</p>
+      </body>
+      </html>
+    `);
+  }
+
+  const container = document.createElement('div');
+  container.style.padding = '25px';
+  container.style.color = '#111';
+  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+  container.innerHTML = `
+    <h1 style="text-align: center; font-size: 1.8rem; margin-bottom: 4px; color: #0284c7;">📋 Menu de la Semaine</h1>
+    <p style="text-align: center; color: #64748b; font-size: 0.95rem; margin-top: 0; margin-bottom: 20px;">Planning familial du vendredi soir au vendredi midi</p>
+    <table style="width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+      <thead>
+        <tr style="background: #f1f5f9;">
+          <th style="padding: 10px; font-size: 0.85rem; color: #475569; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; text-align: center;">Jour</th>
+          <th style="padding: 10px; font-size: 0.85rem; color: #475569; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; text-align: left;">Plat prévu</th>
+          <th style="padding: 10px; font-size: 0.85rem; color: #475569; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; text-align: center;">Convives</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  `;
+
+  if (typeof html2pdf === 'undefined') {
+    await new Promise(resolve => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  }
+
+  if (typeof html2pdf !== 'undefined') {
+    const opt = {
+      margin: 10,
+      filename: 'Menu_de_la_Semaine.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(container).toPdf().get('pdf').then(function(pdf) {
+      const blob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+      if (pdfTab) {
+        pdfTab.location.href = blobUrl;
+      } else {
+        window.open(blobUrl, '_blank');
+      }
+    }).catch(err => {
+      console.error(err);
+      if (pdfTab) pdfTab.document.body.innerHTML = container.innerHTML;
+    });
+  } else {
+    if (pdfTab) pdfTab.document.body.innerHTML = container.innerHTML;
+  }
 };
 
 // --- CAHIER DE RECETTES : OUVERTURE EN VRAI PDF (SANS BOÎTE D'IMPRESSION) ---
@@ -946,7 +985,6 @@ window.printRecipeBook = async function() {
     return;
   }
 
-  // Ouvre immédiatement l'onglet pour éviter le blocage des pop-ups
   const pdfTab = window.open('', '_blank');
   if (pdfTab) {
     pdfTab.document.write(`
@@ -970,7 +1008,6 @@ window.printRecipeBook = async function() {
     `);
   }
 
-  // Construction de l'élément HTML complet
   const container = document.createElement('div');
   container.style.padding = '25px';
   container.style.color = '#111';
@@ -1014,7 +1051,6 @@ window.printRecipeBook = async function() {
     ${recipesHtml}
   `;
 
-  // Chargement à la volée de html2pdf si nécessaire
   if (typeof html2pdf === 'undefined') {
     await new Promise(resolve => {
       const script = document.createElement('script');
