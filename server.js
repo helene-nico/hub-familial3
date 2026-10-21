@@ -5,6 +5,14 @@ const app = express();
 
 app.use(express.json({ limit: '10mb' }));
 
+// Empêche le navigateur et les proxys de mettre en cache les données
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // Détection automatique du dossier statique (Public, public ou racine)
 let publicDir = path.join(__dirname, 'public');
 if (fs.existsSync(path.join(__dirname, 'Public'))) {
