@@ -1,3 +1,65 @@
+// --- SYNCHRONISATION AVEC UPSTASH (RENDER) ---
+async function saveToCloud(key, value) {
+  try {
+    await fetch(`/api/store/${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value })
+    });
+  } catch (err) {
+    console.error(`Erreur sauvegarde cloud (${key}) :`, err);
+  }
+}
+
+async function deleteFromCloud(key) {
+  try {
+    await fetch(`/api/store/${key}`, { method: 'DELETE' });
+  } catch (err) {
+    console.error(`Erreur suppression cloud (${key}) :`, err);
+  }
+}
+
+async function syncFromCloud() {
+  try {
+    const res = await fetch('/api/sync');
+    if (!res.ok) return;
+    const cloudData = await res.json();
+
+    if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
+      // 1. Mettre à jour le localStorage avec les données du serveur
+      Object.keys(cloudData).forEach(key => {
+        const val = cloudData[key];
+        localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+      });
+
+      // 2. Mettre à jour la variable en mémoire pour les comptes
+      if (cloudData.bank_accounts) {
+        bankAccounts = typeof cloudData.bank_accounts === 'string'
+          ? JSON.parse(cloudData.bank_accounts)
+          : cloudData.bank_accounts;
+      }
+
+      // 3. Rafraîchir l'interface
+      renderAccountsCards();
+      if (currentAccountId) {
+        loadCurrentAccountData();
+      }
+    } else {
+      // Si la base Upstash est encore vide, on initialise avec les comptes par défaut
+      if (bankAccounts && bankAccounts.length > 0) {
+        saveToCloud('bank_accounts', bankAccounts);
+      }
+    }
+  } catch (err) {
+    console.error("Erreur de synchronisation cloud :", err);
+  }
+}
+
+// Synchronise au chargement, au retour sur l'onglet et toutes les 30 secondes
+syncFromCloud();
+window.addEventListener('focus', syncFromCloud);
+setInterval(syncFromCloud, 30000);
+
 // --- DONNÉES FINANCIÈRES ---
 let bankAccounts = JSON.parse(localStorage.getItem('bank_accounts')) || [
   { id: 'acc_comm', name: 'Compte Commun', icon: '🏦', ownerId: 'shared', sharing: 'all', baseBalance: 0 },
@@ -105,6 +167,8 @@ function loadCurrentAccountData() {
 
 function saveBudgetData() {
   if (!currentAccountId) return;
+
+  // 1. Sauvegarde locale
   localStorage.setItem('transactions_' + currentAccountId, JSON.stringify(transactions));
   localStorage.setItem('recurring_rules_' + currentAccountId, JSON.stringify(recurringRules));
   localStorage.setItem('categories_' + currentAccountId, JSON.stringify(categories));
@@ -113,7 +177,13 @@ function saveBudgetData() {
   if (acc) {
     acc.baseBalance = baseBalance;
     localStorage.setItem('bank_accounts', JSON.stringify(bankAccounts));
+    saveToCloud('bank_accounts', bankAccounts);
   }
+
+  // 2. Synchronisation Upstash
+  saveToCloud('transactions_' + currentAccountId, transactions);
+  saveToCloud('recurring_rules_' + currentAccountId, recurringRules);
+  saveToCloud('categories_' + currentAccountId, categories);
 }
 
 function renderAccountsCards() {
@@ -157,22 +227,22 @@ function renderAccountsCards() {
 function generateRecurringTransactions(monthKey) {
   if (!recurringRules || recurringRules.length === 0) return;
   let modified = false;
-  
+
   recurringRules.forEach(rule => {
     const ruleMonthKey = getBudgetMonthKey(rule.startDate);
     if (ruleMonthKey <= monthKey) {
       const exists = transactions.some(t => t.recurringId === rule.id && getBudgetMonthKey(t.date) === monthKey);
-      
+
       if (!exists) {
         let y = parseInt(monthKey.split('-')[0]);
         let m = parseInt(monthKey.split('-')[1]);
         let d = rule.day;
-        
+
         let maxDays = new Date(y, m, 0).getDate();
         if (d > maxDays) d = maxDays;
-        
+
         let dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        
+
         transactions.push({
           id: 'tx_' + Date.now() + Math.floor(Math.random() * 1000),
           type: rule.type,
@@ -180,14 +250,14 @@ function generateRecurringTransactions(monthKey) {
           title: rule.title,
           amount: rule.amount,
           date: dateStr,
-          cleared: false, 
+          cleared: false,
           recurringId: rule.id
         });
         modified = true;
       }
     }
   });
-  
+
   if (modified) saveBudgetData();
 }
 
@@ -201,7 +271,7 @@ function renderBudget() {
   const year = currentDateBudget.getFullYear();
   const month = currentDateBudget.getMonth();
   const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
-  
+
   const monthLabel = document.getElementById('currentMonthLabel');
   if (monthLabel) monthLabel.textContent = `${monthNames[month]} ${year}`;
 
@@ -379,7 +449,7 @@ window.closeCatModal = () => { document.getElementById('catModal').style.display
 function renderCatModalList() {
   const list = document.getElementById('modalCatList');
   if (!list) return;
-  
+
   if (categories.length === 0) {
     list.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:10px;">Aucune catégorie.</p>';
     return;
@@ -479,7 +549,7 @@ window.closeAccountModal = function() {
   document.getElementById('accountModal').style.display = 'none';
 };
 
-window.deleteCurrentActiveAccount = function() {
+window.deleteCurrentActiveAccount = async function() {
   const editId = document.getElementById('editAccountId').value;
   if (!editId) return;
 
@@ -492,6 +562,12 @@ window.deleteCurrentActiveAccount = function() {
     localStorage.removeItem('recurring_rules_' + editId);
     localStorage.removeItem('categories_' + editId);
     localStorage.setItem('bank_accounts', JSON.stringify(bankAccounts));
+
+    // Suppression sur Upstash
+    await deleteFromCloud('transactions_' + editId);
+    await deleteFromCloud('recurring_rules_' + editId);
+    await deleteFromCloud('categories_' + editId);
+    await saveToCloud('bank_accounts', bankAccounts);
 
     closeAccountModal();
     currentAccountId = null;
@@ -533,6 +609,8 @@ if (accountForm) {
     }
 
     localStorage.setItem('bank_accounts', JSON.stringify(bankAccounts));
+    saveToCloud('bank_accounts', bankAccounts);
+
     closeAccountModal();
     if (currentAccountId) {
       loadCurrentAccountData();
@@ -552,7 +630,7 @@ window.closeRecurringModal = () => { document.getElementById('recurringModal').s
 function renderRecurringList() {
   const list = document.getElementById('recurringList');
   if (!list) return;
-  
+
   if (!recurringRules || recurringRules.length === 0) {
     list.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Aucune opération récurrente configurée.</p>';
     return;
