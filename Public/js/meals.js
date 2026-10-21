@@ -45,6 +45,8 @@ const DEFAULT_RECIPES = [
   { id: 'r_blanquette', icon: '🍲🍚', title: 'Blanquette de veau', category: 'Week-end', ingredients: [{ name: 'Veau (épaule)', qty: 800, unit: 'g' }, { name: 'Carottes', qty: 4, unit: 'p' }, { name: 'Champignons', qty: 250, unit: 'g' }, { name: 'Crème épaisse', qty: 20, unit: 'cl' }, { name: 'Riz', qty: 300, unit: 'g' }], steps: 'Faire bouillir la viande 1h30 dans un bouillon avec les carottes. Préparer une sauce avec le bouillon, de la farine et la crème. Ajouter les champignons cuits et servir avec du riz.' }
 ];
 
+window.RECIPES_CATALOG = DEFAULT_RECIPES;
+
 let customRecipes = JSON.parse(localStorage.getItem('custom_recipes')) || [];
 
 function getAllRecipes() {
@@ -53,7 +55,7 @@ function getAllRecipes() {
   return [...customRecipes, ...filteredDefaults];
 }
 
-// Semaine débutant le Vendredi Soir et finissant le Vendredi Midi
+// Semaine débutant le Vendredi Soir et se terminant le Vendredi Midi suivant
 const MEAL_DAYS = [
   { id: 'fri_start', name: 'Vendredi', slots: [{ id: 'fri_eve', label: 'Soir' }] },
   { id: 'sat', name: 'Samedi', slots: [{ id: 'sat_mid', label: 'Midi' }, { id: 'sat_eve', label: 'Soir' }] },
@@ -181,7 +183,7 @@ window.swapMealSlot = async function(slotId, event) {
 
     const recipe = await res.json();
 
-    // Enregistrement de la nouvelle recette dans la base locale
+    // Enregistrement local de la recette reçue
     customRecipes.push(recipe);
     localStorage.setItem('custom_recipes', JSON.stringify(customRecipes));
 
