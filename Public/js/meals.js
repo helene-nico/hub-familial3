@@ -75,9 +75,53 @@ function saveMealsPlan() {
   localStorage.setItem('weekly_meals_plan', JSON.stringify(weeklyPlan));
 }
 
+// Menu Déroulant "Options"
+window.toggleMealsOptionsMenu = function(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('mealsDropdownMenu');
+  if (menu) menu.classList.toggle('hidden');
+};
+
+window.closeMealsDropdown = function() {
+  const menu = document.getElementById('mealsDropdownMenu');
+  if (menu) menu.classList.add('hidden');
+};
+
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('mealsDropdownMenu');
+  const btn = document.getElementById('btnMealsOptions');
+  if (menu && !menu.classList.contains('hidden')) {
+    if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
+      menu.classList.add('hidden');
+    }
+  }
+});
+
+// Modification globale : applique immédiatement le nouveau nombre à tous les repas
 window.updateDefaultPortions = function(val) {
   defaultPortions = Math.max(1, parseInt(val, 10) || 4);
   localStorage.setItem('default_meal_portions', defaultPortions);
+
+  // Applique à tous les repas déjà configurés
+  Object.keys(weeklyPlan).forEach(slotId => {
+    if (weeklyPlan[slotId]) {
+      weeklyPlan[slotId].portions = defaultPortions;
+    }
+  });
+
+  saveMealsPlan();
+  renderMeals();
+};
+
+// Ajustement individuel pour un seul repas
+window.updateMealPortions = function(slotId, val) {
+  const portions = Math.max(1, parseInt(val, 10) || defaultPortions);
+  if (!weeklyPlan[slotId]) {
+    weeklyPlan[slotId] = { recipeId: null, customTitle: '', portions };
+  } else {
+    weeklyPlan[slotId].portions = portions;
+  }
+  saveMealsPlan();
 };
 
 // --- AFFICHAGE DU PLANNING ---
@@ -102,6 +146,11 @@ window.renderMeals = function() {
       const customTitle = meal ? (meal.customTitle || (recipe ? recipe.title : '')) : '';
       const displayIcon = recipe ? (recipe.icon || '🍽️') : '🍽️';
 
+      // Si le repas est défini -> clic affiche la recette ; si vide -> clic ouvre le choix
+      const clickAction = customTitle 
+        ? `viewMealRecipe('${slot.id}')` 
+        : `openMealPicker('${slot.id}', '${day.name} ${slot.label}')`;
+
       return `
         <div class="meal-slot-box">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -114,7 +163,7 @@ window.renderMeals = function() {
                 onchange="updateMealPortions('${slot.id}', this.value)" title="Nombre de personnes">
             </div>
           </div>
-          <div class="meal-slot-content ${customTitle ? 'filled' : 'empty'}" onclick="openMealPicker('${slot.id}', '${day.name} ${slot.label}')">
+          <div class="meal-slot-content ${customTitle ? 'filled' : 'empty'}" onclick="${clickAction}">
             ${customTitle ? `
               <div style="display:flex; align-items:center; gap:10px;">
                 <span style="font-size:1.6rem; line-height:1;">${displayIcon}</span>
@@ -137,14 +186,97 @@ window.renderMeals = function() {
   });
 };
 
-window.updateMealPortions = function(slotId, val) {
-  const portions = Math.max(1, parseInt(val, 10) || defaultPortions);
-  if (!weeklyPlan[slotId]) {
-    weeklyPlan[slotId] = { recipeId: null, customTitle: '', portions };
-  } else {
-    weeklyPlan[slotId].portions = portions;
+// --- AFFICHAGE DE LA RECETTE D'UN REPAS AU CLIC ---
+window.viewMealRecipe = function(slotId) {
+  const meal = weeklyPlan[slotId];
+  if (!meal) return;
+  const allRecipes = getAllRecipes();
+  const recipe = meal.recipeId ? allRecipes.find(r => r.id === meal.recipeId) : null;
+  const title = meal.customTitle || (recipe ? recipe.title : 'Repas');
+  const portions = meal.portions || defaultPortions;
+
+  let dayLabel = slotId;
+  MEAL_DAYS.forEach(d => {
+    const s = d.slots.find(x => x.id === slotId);
+    if (s) dayLabel = `${d.name} ${s.label}`;
+  });
+
+  // Création dynamique de la modale si absente du HTML
+  let modal = document.getElementById('recipeViewModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'recipeViewModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = '<div class="modal" id="recipeViewModalContent" style="width: 520px; max-height: 85vh;"></div>';
+    document.body.appendChild(modal);
   }
-  saveMealsPlan();
+
+  const content = document.getElementById('recipeViewModalContent');
+
+  let ingHtml = '';
+  if (recipe && recipe.ingredients && recipe.ingredients.length > 0) {
+    const factor = portions / 4;
+    ingHtml = `
+      <h4 style="margin: 14px 0 8px 0; font-size: 0.95rem; color: var(--primary);">🛒 Ingrédients (${portions} convives) :</h4>
+      <ul style="margin: 0; padding-left: 20px; font-size: 0.9rem; line-height: 1.6;">
+        ${recipe.ingredients.map(ing => {
+          const qty = Math.round(ing.qty * factor * 10) / 10;
+          const unit = ing.unit === 'p' ? 'pièce(s)' : ing.unit;
+          return `<li><b>${ing.name}</b> : ${qty}${unit}</li>`;
+        }).join('')}
+      </ul>
+    `;
+  } else {
+    ingHtml = `<p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">Aucune liste d'ingrédients détaillée enregistrée pour ce plat.</p>`;
+  }
+
+  let stepsHtml = '';
+  if (recipe && recipe.steps) {
+    stepsHtml = `
+      <h4 style="margin: 16px 0 8px 0; font-size: 0.95rem; color: var(--primary);">👩‍🍳 Instructions de préparation :</h4>
+      <p style="font-size: 0.9rem; line-height: 1.5; background: var(--surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); white-space: pre-wrap;">${recipe.steps}</p>
+    `;
+  }
+
+  content.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size: 2.2rem;">${recipe ? (recipe.icon || '🍽️') : '🍽️'}</span>
+        <div>
+          <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800;">${title}</h3>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">${dayLabel} • ${portions} convives</span>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeRecipeViewModal()">✕</button>
+    </div>
+
+    ${ingHtml}
+    ${stepsHtml}
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:18px; border-top:1px solid var(--border); padding-top:12px; flex-wrap:wrap; gap:8px;">
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn-nav btn-small" onclick="closeRecipeViewModal(); openMealPicker('${slotId}', '${dayLabel}');">🔄 Changer de plat</button>
+        <button type="button" class="btn-danger btn-small" onclick="removeMealFromSlot('${slotId}')">🗑️ Retirer</button>
+      </div>
+      <button type="button" class="btn-primary btn-small" onclick="closeRecipeViewModal()">Fermer</button>
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+};
+
+window.closeRecipeViewModal = function() {
+  const modal = document.getElementById('recipeViewModal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.removeMealFromSlot = function(slotId) {
+  if (weeklyPlan[slotId]) {
+    delete weeklyPlan[slotId];
+    saveMealsPlan();
+    renderMeals();
+  }
+  closeRecipeViewModal();
 };
 
 // --- SUGGESTION RAPIDE D'UN REPAS VIA IA (BOUTON 🔄 IA) ---
@@ -214,7 +346,6 @@ window.openMealPicker = function(slotId, slotTitle) {
   const searchInput = document.getElementById('recipeSearchInput');
   if (searchInput) {
     searchInput.value = '';
-    // Déclenchement automatique de la recherche IA en appuyant sur Entrée
     searchInput.onkeydown = function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -232,7 +363,7 @@ window.closeMealPickerModal = function() {
   activePickingSlotId = null;
 };
 
-// Recherche intelligente : affiche les résultats locaux + option de génération IA
+// Recherche locale + Encart IA
 window.renderRecipesList = function() {
   const container = document.getElementById('recipePickerList');
   if (!container) return;
@@ -248,7 +379,6 @@ window.renderRecipesList = function() {
     return matchCat && matchSearch;
   });
 
-  // Encart de génération IA lorsqu'un texte est saisi
   let aiCardHtml = '';
   if (rawSearch.length > 1) {
     const safeSearch = rawSearch.replace(/"/g, '&quot;');
@@ -266,7 +396,6 @@ window.renderRecipesList = function() {
     `;
   }
 
-  // Aucun résultat trouvé dans la base locale
   if (filtered.length === 0) {
     if (rawSearch.length > 0) {
       const safeSearch = rawSearch.replace(/'/g, "\\'");
@@ -286,7 +415,6 @@ window.renderRecipesList = function() {
     return;
   }
 
-  // Affichage de la suggestion IA suivie des recettes existantes
   container.innerHTML = aiCardHtml + filtered.map(r => `
     <div class="recipe-pick-item" style="display:flex; justify-content:space-between; align-items:center;">
       <div onclick="selectRecipeForSlot('${r.id}')" style="display:flex; align-items:center; gap:12px; flex:1; cursor:pointer;">
@@ -304,7 +432,7 @@ window.renderRecipesList = function() {
   `).join('');
 };
 
-// Génération ciblée du plat saisi via l'IA
+// Création d'un plat spécifique via l'IA
 window.generateDishFromSearchAI = async function(dishNameOverride) {
   const searchInput = document.getElementById('recipeSearchInput');
   const dishName = (dishNameOverride || searchInput?.value || '').trim();
@@ -339,11 +467,9 @@ window.generateDishFromSearchAI = async function(dishNameOverride) {
 
     const recipe = await res.json();
 
-    // Enregistrement de la nouvelle recette
     customRecipes.push(recipe);
     localStorage.setItem('custom_recipes', JSON.stringify(customRecipes));
 
-    // Si on est en train de choisir un repas pour un créneau, on l'assigne directement
     if (activePickingSlotId) {
       const currentPortions = weeklyPlan[activePickingSlotId]?.portions || defaultPortions;
       weeklyPlan[activePickingSlotId] = {
@@ -531,7 +657,7 @@ window.deleteCurrentRecipe = function() {
 window.autoSuggestWeek = async function() {
   if (!confirm("Générer un planning complet pour la semaine grâce à l'IA sur Internet ?")) return;
 
-  const btn = document.querySelector('button[onclick="autoSuggestWeek()"]');
+  const btn = document.querySelector('button[onclick*="autoSuggestWeek"]');
   const originalText = btn ? btn.textContent : '';
   if (btn) {
     btn.textContent = '⏳ Génération en cours...';
@@ -715,7 +841,7 @@ window.copyGroceryToClipboard = function() {
   navigator.clipboard.writeText(textToCopy.trim()).then(() => alert("Liste de courses copiée dans le presse-papier !"));
 };
 
-// --- IMPRESSIONS PDF ---
+// --- MENU FRIGO ---
 window.printFridgeMenu = function() {
   let hasMeals = false;
   let rowsHtml = '';
@@ -783,7 +909,7 @@ window.printFridgeMenu = function() {
           <tr>
             <th>Jour</th>
             <th style="text-align:left;">Plat prévu</th>
-            <th style="text-align:center;">Miam !</th>
+            <th style="text-align:center;">Convives</th>
           </tr>
         </thead>
         <tbody>
@@ -799,7 +925,8 @@ window.printFridgeMenu = function() {
   printWindow.document.close();
 };
 
-window.printRecipeBook = function() {
+// --- CAHIER DE RECETTES : OUVERTURE EN VRAI PDF (SANS BOÎTE D'IMPRESSION) ---
+window.printRecipeBook = async function() {
   const chosenRecipes = [];
   const allRecipes = getAllRecipes();
 
@@ -819,6 +946,36 @@ window.printRecipeBook = function() {
     return;
   }
 
+  // Ouvre immédiatement l'onglet pour éviter le blocage des pop-ups
+  const pdfTab = window.open('', '_blank');
+  if (pdfTab) {
+    pdfTab.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Génération du PDF...</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; color: #333; margin: 0; background: #f8fafc; }
+          .loader { font-size: 2.8rem; margin-bottom: 16px; animation: spin 2s linear infinite; }
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        </style>
+      </head>
+      <body>
+        <div class="loader">⏳</div>
+        <h2 style="margin: 0 0 8px 0; color: #1e293b;">Génération de votre Cahier de Recettes...</h2>
+        <p style="color: #64748b; margin: 0;">Création du fichier PDF en cours, veuillez patienter.</p>
+      </body>
+      </html>
+    `);
+  }
+
+  // Construction de l'élément HTML complet
+  const container = document.createElement('div');
+  container.style.padding = '25px';
+  container.style.color = '#111';
+  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
   let recipesHtml = chosenRecipes.map((item, i) => {
     const factor = item.portions / 4;
     const ingList = item.recipe.ingredients.map(ing => {
@@ -827,56 +984,69 @@ window.printRecipeBook = function() {
     }).join('');
 
     return `
-      <div style="page-break-inside: avoid; margin-bottom: 30px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; background: #fafafa;">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e5e7eb; padding-bottom:12px; margin-bottom:15px;">
+      <div style="page-break-inside: avoid; margin-bottom: 28px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; background: #ffffff;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:10px; margin-bottom:12px;">
           <div style="display:flex; align-items:center; gap:12px;">
-            <span style="font-size:2.5rem;">${item.recipe.icon || '🍽️'}</span>
-            <h2 style="font-size:1.4rem; margin:0; color:#111;">Recette ${i + 1} : ${item.recipe.title}</h2>
+            <span style="font-size:2.2rem;">${item.recipe.icon || '🍽️'}</span>
+            <h2 style="font-size:1.3rem; margin:0; color:#0f172a;">Recette ${i + 1} : ${item.recipe.title}</h2>
           </div>
-          <span style="background:#e0f2fe; color:#0369a1; padding:6px 12px; border-radius:8px; font-size:0.9rem; font-weight:bold;">
+          <span style="background:#e0f2fe; color:#0369a1; padding:4px 10px; border-radius:6px; font-size:0.85rem; font-weight:bold;">
             ${item.dayLabel} • Pour ${item.portions} personnes
           </span>
         </div>
-        <div style="display:flex; gap:20px;">
-          <div style="flex:1; background:white; padding:15px; border-radius:8px; border:1px solid #e5e7eb;">
-            <h3 style="font-size:1.05rem; margin:0 0 10px 0; color:#4b5563;">🛒 Ingrédients :</h3>
-            <ul style="margin:0; padding-left:20px; font-size:0.95rem; line-height:1.6;">${ingList}</ul>
+        <div style="display:flex; gap:16px;">
+          <div style="flex:1; background:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0;">
+            <h3 style="font-size:0.95rem; margin:0 0 8px 0; color:#334155;">🛒 Ingrédients :</h3>
+            <ul style="margin:0; padding-left:18px; font-size:0.88rem; line-height:1.5;">${ingList}</ul>
           </div>
-          <div style="flex:2; background:white; padding:15px; border-radius:8px; border:1px solid #e5e7eb;">
-            <h3 style="font-size:1.05rem; margin:0 0 10px 0; color:#4b5563;">👩‍🍳 Préparation :</h3>
-            <p style="margin:0; font-size:0.95rem; line-height:1.6; color:#1f2937;">${item.recipe.steps || 'Aucune étape renseignée.'}</p>
+          <div style="flex:2; background:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0;">
+            <h3 style="font-size:0.95rem; margin:0 0 8px 0; color:#334155;">👩‍🍳 Préparation :</h3>
+            <p style="margin:0; font-size:0.88rem; line-height:1.5; color:#1e293b; white-space:pre-wrap;">${item.recipe.steps || 'Aucune étape renseignée.'}</p>
           </div>
         </div>
       </div>
     `;
   }).join('');
 
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Cahier de Recettes de la Semaine</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 25px; color: #111; }
-        h1 { text-align: center; font-size: 2rem; margin-bottom: 5px; color: #2563eb; }
-        p.subtitle { text-align: center; color: #666; font-size: 1.1rem; margin-top: 0; margin-bottom: 30px; }
-        @media print {
-          @page { margin: 15mm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        }
-      </style>
-    </head>
-    <body>
-      <h1>📖 Cahier de Recettes de la Semaine</h1>
-      <p class="subtitle">Quantités ajustées au nombre exact de convives pour chaque repas</p>
-      ${recipesHtml}
-      <script>
-        window.onload = function() { window.print(); }
-      </script>
-    </body>
-    </html>
-  `);
-  printWindow.document.close();
+  container.innerHTML = `
+    <h1 style="text-align: center; font-size: 1.8rem; margin-bottom: 4px; color: #0284c7;">📖 Cahier de Recettes de la Semaine</h1>
+    <p style="text-align: center; color: #64748b; font-size: 0.95rem; margin-top: 0; margin-bottom: 24px;">Quantités ajustées pour chaque repas</p>
+    ${recipesHtml}
+  `;
+
+  // Chargement à la volée de html2pdf si nécessaire
+  if (typeof html2pdf === 'undefined') {
+    await new Promise(resolve => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  }
+
+  if (typeof html2pdf !== 'undefined') {
+    const opt = {
+      margin: 10,
+      filename: 'Cahier_Recettes_Semaine.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(container).toPdf().get('pdf').then(function(pdf) {
+      const blob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+      if (pdfTab) {
+        pdfTab.location.href = blobUrl;
+      } else {
+        window.open(blobUrl, '_blank');
+      }
+    }).catch(err => {
+      console.error(err);
+      if (pdfTab) pdfTab.document.body.innerHTML = container.innerHTML;
+    });
+  } else {
+    if (pdfTab) pdfTab.document.body.innerHTML = container.innerHTML;
+  }
 };
