@@ -1,7 +1,35 @@
+// --- UTILITAIRES CRYPTO & SÉCURITÉ ---
+
+// Hachage SHA-256 via l'API Web Crypto native du navigateur
+async function hashPin(pin) {
+  if (!pin || pin.trim() === '') return '';
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin.trim());
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Vérifie un code PIN saisi face au format stocké (gère le hash et l'ancien texte en clair)
+async function verifyPin(inputPin, storedPin) {
+  if (!storedPin) return true;
+  if (/^[a-f0-9]{64}$/i.test(storedPin)) {
+    const hashedInput = await hashPin(inputPin);
+    return hashedInput === storedPin;
+  }
+  // Rétrocompatibilité avec les anciens profils non encore migrés
+  return inputPin.trim() === storedPin.trim();
+}
+
+// Compteurs de protection anti-force brute
+let failedPinAttempts = 0;
+let lockoutUntil = 0;
+
 // --- DONNÉES UTILISATEURS ---
+// Les codes par défaut "0000" sont pré-hachés en SHA-256
 let appUsers = JSON.parse(localStorage.getItem('app_users')) || [
-  { id: 'u1', name: 'Papa', role: 'parent', pin: '0000', avatar: '👨' },
-  { id: 'u2', name: 'Maman', role: 'parent', pin: '0000', avatar: '👩' },
+  { id: 'u1', name: 'Papa', role: 'parent', pin: '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0', avatar: '👨' },
+  { id: 'u2', name: 'Maman', role: 'parent', pin: '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0', avatar: '👩' },
   { id: 'u3', name: 'Enfant 1', role: 'child', pin: '', avatar: '👧' }
 ];
 
@@ -31,12 +59,19 @@ function attemptLogin(id) {
   const u = appUsers.find(x => x.id === id);
   if (!u) return;
 
+  if (Date.now() < lockoutUntil) {
+    const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+    alert(`Accès temporairement bloqué suite à des erreurs répétées. Réessayez dans ${remaining} s.`);
+    return;
+  }
+
   if (u.pin && u.pin.trim() !== '') {
     pendingLoginUserId = u.id;
     document.getElementById('loginPinTitle').textContent = `Bonjour ${u.name}`;
-    document.getElementById('login-pin-input').value = '';
+    const pinInput = document.getElementById('login-pin-input');
+    pinInput.value = '';
     document.getElementById('pin-login-modal').style.display = 'flex';
-    setTimeout(() => document.getElementById('login-pin-input').focus(), 50);
+    setTimeout(() => pinInput.focus(), 50);
   } else {
     loginAs(u);
   }
@@ -47,16 +82,42 @@ function closeLoginPinModal() {
   pendingLoginUserId = null;
 }
 
-function submitLoginPin() {
-  const input = document.getElementById('login-pin-input').value;
+async function submitLoginPin() {
+  if (Date.now() < lockoutUntil) {
+    const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+    alert(`Accès temporairement bloqué. Réessayez dans ${remaining} s.`);
+    return;
+  }
+
+  const pinInput = document.getElementById('login-pin-input');
+  const enteredPin = pinInput.value;
   const u = appUsers.find(x => x.id === pendingLoginUserId);
-  if (u && u.pin === input) {
+  if (!u) return;
+
+  const isCorrect = await verifyPin(enteredPin, u.pin);
+
+  if (isCorrect) {
+    failedPinAttempts = 0;
+
+    // Si le compte stockait encore l'ancien mot de passe en clair, on le migre en SHA-256
+    if (u.pin && !/^[a-f0-9]{64}$/i.test(u.pin)) {
+      u.pin = await hashPin(enteredPin);
+      localStorage.setItem('app_users', JSON.stringify(appUsers));
+    }
+
     closeLoginPinModal();
     loginAs(u);
   } else {
-    alert("Code PIN erroné.");
-    document.getElementById('login-pin-input').value = '';
-    document.getElementById('login-pin-input').focus();
+    failedPinAttempts++;
+    if (failedPinAttempts >= 5) {
+      lockoutUntil = Date.now() + 30000; // Verrouillage 30 secondes
+      alert("Trop de tentatives infructueuses. Verrouillage de sécurité pendant 30 secondes.");
+      closeLoginPinModal();
+    } else {
+      alert(`Code PIN erroné. (Tentative ${failedPinAttempts}/5)`);
+      pinInput.value = '';
+      pinInput.focus();
+    }
   }
 }
 
@@ -75,7 +136,6 @@ function loginAs(user) {
   if (btnSettings) btnSettings.style.display = 'inline-block';
   if (btnParent) btnParent.style.display = user.role === 'parent' ? 'inline-block' : 'none';
 
-  // Appels sécurisés vers les autres modules
   if (typeof applySettings === 'function') applySettings();
   if (typeof initDefaultSelectedAccount === 'function') initDefaultSelectedAccount();
   if (typeof renderKids === 'function') renderKids();
@@ -90,20 +150,20 @@ function logout() {
 }
 
 // --- GESTION DES PROFILS (ADMINISTRATION PARENTALE) ---
-// --- GESTION DES PROFILS (ADMINISTRATION PARENTALE) ---
 function openProfileEditModal(userId) {
   if (currentUser && currentUser.role !== 'parent') {
     alert("Seul un profil parent peut administrer les profils.");
     return;
   }
 
-  // Ferme la fenêtre des paramètres généraux
   if (typeof closeGeneralSettingsModal === 'function') {
     closeGeneralSettingsModal();
   }
 
   const form = document.getElementById('profileEditForm');
   if (form) form.reset();
+
+  const pinField = document.getElementById('editUserPin');
 
   if (userId) {
     const u = appUsers.find(x => x.id === userId);
@@ -113,12 +173,23 @@ function openProfileEditModal(userId) {
     document.getElementById('editUserName').value = u.name;
     document.getElementById('editUserAvatar').value = u.avatar;
     document.getElementById('editUserRole').value = u.role;
-    document.getElementById('editUserPin').value = u.pin || '';
+    
+    // On n'affiche jamais le hash : on indique par placeholder l'état actuel
+    if (pinField) {
+      pinField.value = u.pin ? '••••••••' : '';
+      pinField.onfocus = () => {
+        if (pinField.value === '••••••••') pinField.value = '';
+      };
+    }
   } else {
     document.getElementById('profileEditModalTitle').textContent = "Créer un profil";
     document.getElementById('editUserId').value = '';
     document.getElementById('editUserAvatar').value = '🧑';
     document.getElementById('editUserRole').value = 'child';
+    if (pinField) {
+      pinField.value = '';
+      pinField.onfocus = null;
+    }
   }
 
   document.getElementById('profileEditModal').style.display = 'flex';
@@ -126,13 +197,12 @@ function openProfileEditModal(userId) {
 
 window.closeProfileEditModal = () => {
   document.getElementById('profileEditModal').style.display = 'none';
-  // Réouvre les paramètres généraux pour revenir à la liste
   if (typeof openGeneralSettingsModal === 'function') {
     openGeneralSettingsModal();
   }
 };
 
-function saveProfileEdit(e) {
+async function saveProfileEdit(e) {
   e.preventDefault();
   if (currentUser && currentUser.role !== 'parent') return;
 
@@ -140,7 +210,8 @@ function saveProfileEdit(e) {
   const name = document.getElementById('editUserName').value.trim();
   const avatar = document.getElementById('editUserAvatar').value.trim();
   const role = document.getElementById('editUserRole').value;
-  const pin = document.getElementById('editUserPin').value.trim();
+  const pinField = document.getElementById('editUserPin');
+  const rawPin = pinField ? pinField.value.trim() : '';
 
   if (!name) return;
 
@@ -155,14 +226,23 @@ function saveProfileEdit(e) {
       u.name = name;
       u.avatar = avatar;
       u.role = role;
-      u.pin = pin;
+
+      // Traitement du code PIN
+      if (rawPin === '••••••••') {
+        // Le code reste inchangé
+      } else if (rawPin === '') {
+        u.pin = ''; // Code désactivé
+      } else {
+        u.pin = await hashPin(rawPin); // Nouveau code haché
+      }
     }
   } else {
+    const hashedPin = rawPin ? await hashPin(rawPin) : '';
     appUsers.push({
       id: 'u_' + Date.now(),
       name,
       role,
-      pin,
+      pin: hashedPin,
       avatar,
       theme: 'dark',
       primaryColor: '#38bdf8'
@@ -171,10 +251,10 @@ function saveProfileEdit(e) {
 
   localStorage.setItem('app_users', JSON.stringify(appUsers));
   
-  // Ferme la modale d'édition et rouvre les paramètres avec la liste à jour
   closeProfileEditModal();
   if (typeof initDefaultSelectedAccount === 'function') initDefaultSelectedAccount();
 }
+
 function renderAppUsersList() {
   const list = document.getElementById('appUsersList');
   if (!list) return;
@@ -207,3 +287,14 @@ window.deleteAppUser = (id) => {
     if (typeof initDefaultSelectedAccount === 'function') initDefaultSelectedAccount();
   }
 };
+
+// Exposition explicite sur la portée globale
+window.showLoginScreen = showLoginScreen;
+window.attemptLogin = attemptLogin;
+window.closeLoginPinModal = closeLoginPinModal;
+window.submitLoginPin = submitLoginPin;
+window.loginAs = loginAs;
+window.logout = logout;
+window.openProfileEditModal = openProfileEditModal;
+window.saveProfileEdit = saveProfileEdit;
+window.renderAppUsersList = renderAppUsersList;
