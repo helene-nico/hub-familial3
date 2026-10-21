@@ -128,14 +128,32 @@ app.delete('/api/store/:key', async (req, res) => {
   }
 });
 
-// Route IA : Suggérer un seul repas
+// Route IA : Suggérer ou créer un plat spécifique
 app.post('/api/ai/suggest-meal', async (req, res) => {
   try {
-    const { slotLabel, existingMeals } = req.body;
-    const prompt = `Propose une idée de repas familial français pour : ${slotLabel}.
+    const { slotLabel, existingMeals, dishName } = req.body;
+    let prompt;
+
+    if (dishName && dishName.trim()) {
+      prompt = `Tu es un chef cuisinier familial français. Génère la recette complète, équilibrée et détaillée pour le plat spécifique suivant : "${dishName.trim()}".
+Le plat doit convenir pour 4 personnes.
+
+Réponds OBLIGATOIREMENT avec ce JSON valide :
+{
+  "title": "Nom précis et appétissant du plat",
+  "icon": "Emoji représentatif (ex: 🥘, 🥩, 🍝, 🐟)",
+  "category": "Catégorie parmi: Quotidien, Réconfort, Monde, Pâtes & Riz, Léger & Salade, Végétarien, Week-end",
+  "ingredients": [
+    { "name": "Nom ingrédient", "qty": 400, "unit": "g" }
+  ],
+  "steps": "Instructions de préparation claires et concises pour 4 personnes."
+}
+Unités autorisées pour les ingrédients : "g", "kg", "cl", "L", "p" (pour pièces), "c. à soupe", "portion".`;
+    } else {
+      prompt = `Propose une idée de repas familial français pour : ${slotLabel}.
 ${existingMeals && existingMeals.length > 0 ? `Évite les plats similaires à : ${existingMeals.join(', ')}.` : ''}
 
-Réponds UNIQUEMENT avec ce JSON valide :
+Réponds OBLIGATOIREMENT avec ce JSON valide :
 {
   "title": "Nom du plat",
   "icon": "Emoji représentatif",
@@ -145,6 +163,7 @@ Réponds UNIQUEMENT avec ce JSON valide :
   ],
   "steps": "Instructions de préparation claires."
 }`;
+    }
 
     const recipe = await callAI([
       { role: "system", content: "Tu es un chef cuisinier familial qui répond uniquement en JSON strict." },
