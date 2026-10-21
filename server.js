@@ -17,13 +17,27 @@ const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 // Connexion à la base de données Upstash
 async function upstash(commandArray) {
-  if (!REDIS_URL || !REDIS_TOKEN) return { result: null };
+  if (!REDIS_URL || !REDIS_TOKEN) {
+    console.error("❌ ERREUR : UPSTASH_REDIS_REST_URL ou UPSTASH_REDIS_REST_TOKEN est manquant !");
+    throw new Error("Variables d'environnement Upstash non configurées sur Render");
+  }
+
   const res = await fetch(REDIS_URL, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${REDIS_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(commandArray)
   });
-  return res.json();
+
+  const data = await res.json();
+  if (data.error) {
+    console.error("❌ Erreur retournée par Upstash :", data.error);
+    throw new Error(data.error);
+  }
+
+  return data;
 }
 
 app.get('/api/sync', async (req, res) => {
