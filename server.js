@@ -5,7 +5,7 @@ const app = express();
 
 app.use(express.json({ limit: '10mb' }));
 
-// Middleware anti-cache : empêche le navigateur de garder de vieilles requêtes API en mémoire
+// Middleware anti-cache : force les données fraîches à chaque rechargement
 app.use('/api', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -13,7 +13,7 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-// Détection automatique du dossier statique (Public, public ou racine)
+// Détection automatique du dossier statique
 let publicDir = path.join(__dirname, 'public');
 if (fs.existsSync(path.join(__dirname, 'Public'))) {
   publicDir = path.join(__dirname, 'Public');
@@ -23,23 +23,20 @@ if (fs.existsSync(path.join(__dirname, 'Public'))) {
 
 app.use(express.static(publicDir));
 
-// Récupération des clés secrètes depuis Render
 const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-const AI_KEY = process.env.AI_API_KEY; // Clé d'API Groq (gsk_...)
+const AI_KEY = process.env.AI_API_KEY;
 
-// Diagnostic au lancement (visible dans les logs Render)
+// Diagnostic au lancement dans les logs Render
 console.log("--- CONFIGURATION DU SERVEUR ---");
-console.log("Dossier statique utilisé :", publicDir);
-console.log("Fichier index.html présent :", fs.existsSync(path.join(publicDir, 'index.html')) ? "OUI" : "NON INTROUVABLE");
-console.log("UPSTASH_REDIS détecté :", (REDIS_URL && REDIS_TOKEN) ? "OUI" : "NON (MANQUANT)");
-console.log("AI_API_KEY détectée :", AI_KEY ? "OUI" : "NON (MANQUANTE)");
+console.log("Dossier statique :", publicDir);
+console.log("UPSTASH_REDIS :", (REDIS_URL && REDIS_TOKEN) ? "CONNECTÉ" : "MANQUANT");
+console.log("AI_API_KEY :", AI_KEY ? "DÉTECTÉE" : "MANQUANTE");
 console.log("---------------------------------");
 
-// --- FONCTION UPSTASH REDIS ---
 async function upstash(commandArray) {
   if (!REDIS_URL || !REDIS_TOKEN) {
-    throw new Error("Variables d'environnement Upstash manquantes sur Render.");
+    throw new Error("Variables Upstash manquantes sur Render.");
   }
   
   const res = await fetch(REDIS_URL, {
@@ -53,19 +50,18 @@ async function upstash(commandArray) {
   return data;
 }
 
-// --- FONCTION INTELLIGENCE ARTIFICIELLE ---
+// Appel sécurisé à Groq ou OpenAI
 async function callAI(messages) {
   if (!AI_KEY) {
-    throw new Error("Clé d'API manquante. Configure la variable AI_API_KEY (gsk_...) sur Render.");
+    throw new Error("Clé AI_API_KEY non renseignée sur Render.");
   }
 
-  // Configuration adaptée pour Groq
-  let apiUrl = 'https://api.openai.com/v1/chat/completions'; // Par défaut (si sk-...)
+  let apiUrl = 'https://api.openai.com/v1/chat/completions';
   let model = 'gpt-4o-mini';
 
- if (AI_KEY.startsWith('gsk_')) {
+  if (AI_KEY.startsWith('gsk_')) {
     apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-    model = 'hub familial'; // Modèle actif et gratuit pour tous les comptes Groq
+    model = 'llama-3.1-8b-instant'; // Modèle Groq actif, gratuit et ultrarapide
   }
 
   const response = await fetch(apiUrl, {
@@ -78,7 +74,7 @@ async function callAI(messages) {
       model,
       messages,
       temperature: 0.7,
-      response_format: { type: "json_object" } // Force le format JSON
+      response_format: { type: "json_object" }
     })
   });
 
@@ -88,27 +84,22 @@ async function callAI(messages) {
   }
 
   const json = await response.json();
-  const rawContent = json.choices[0].message.content;
-  return JSON.parse(rawContent);
+  return JSON.parse(json.choices[0].message.content);
 }
 
-// --- ROUTE D'ACCUEIL ---
+// Accueil
 app.get('/', (req, res) => {
   const file = path.join(publicDir, 'index.html');
-  if (fs.existsSync(file)) {
-    res.sendFile(file);
-  } else {
-    res.status(404).send("Erreur : le fichier index.html est introuvable sur le serveur.");
-  }
+  if (fs.existsSync(file)) res.sendFile(file);
+  else res.status(404).send("Fichier index.html introuvable.");
 });
 
-// --- ROUTES SYNCHRONISATION UPSTASH REDIS ---
+// Synchronisation Upstash
 app.get('/api/sync', async (req, res) => {
   try {
     const data = await upstash(["GET", "hub_data"]);
     res.json(data.result ? JSON.parse(data.result) : {});
   } catch (err) {
-    console.error("Erreur /api/sync :", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -121,7 +112,6 @@ app.post('/api/store/:key', async (req, res) => {
     await upstash(["SET", "hub_data", JSON.stringify(state)]);
     res.json({ success: true });
   } catch (err) {
-    console.error(`Erreur /api/store/${req.params.key} :`, err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -134,31 +124,27 @@ app.delete('/api/store/:key', async (req, res) => {
     await upstash(["SET", "hub_data", JSON.stringify(state)]);
     res.json({ success: true });
   } catch (err) {
-    console.error(`Erreur delete :`, err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// --- ROUTES INTELLIGENCE ARTIFICIELLE ---
-
-// 1. Suggérer un seul plat (Bouton "🔄 IA")
+// Route IA : Suggérer un seul repas
 app.post('/api/ai/suggest-meal', async (req, res) => {
   try {
     const { slotLabel, existingMeals } = req.body;
-    const prompt = `Tu es un chef de cuisine familiale française. Propose une idée de repas savoureuse, équilibrée et de saison pour : ${slotLabel}.
-${existingMeals && existingMeals.length > 0 ? `Évite de proposer un plat similaire à ceux déjà prévus cette semaine : ${existingMeals.join(', ')}.` : ''}
+    const prompt = `Propose une idée de repas familial français pour : ${slotLabel}.
+${existingMeals && existingMeals.length > 0 ? `Évite les plats similaires à : ${existingMeals.join(', ')}.` : ''}
 
-Réponds obligatoirement avec un JSON respectant exactement cette structure :
+Réponds UNIQUEMENT avec ce JSON valide :
 {
   "title": "Nom du plat",
-  "icon": "Emoji représentatif (ex: 🥘, 🍝, 🥗)",
-  "category": "Catégorie parmi: Réconfort, Monde, Pâtes & Riz, Quotidien, Léger & Salade, Végétarien, Week-end",
+  "icon": "Emoji représentatif",
+  "category": "Quotidien",
   "ingredients": [
     { "name": "Nom ingrédient", "qty": 400, "unit": "g" }
   ],
-  "steps": "Instructions de préparation claires et concises pour 4 personnes."
-}
-Unités autorisées pour les ingrédients : "g", "kg", "cl", "L", "p" (pour pièces), "c. à soupe", "portion".`;
+  "steps": "Instructions de préparation claires."
+}`;
 
     const recipe = await callAI([
       { role: "system", content: "Tu es un chef cuisinier familial qui répond uniquement en JSON strict." },
@@ -168,42 +154,38 @@ Unités autorisées pour les ingrédients : "g", "kg", "cl", "L", "p" (pour piè
     recipe.id = 'r_ai_' + Date.now();
     res.json(recipe);
   } catch (err) {
-    console.error("Erreur IA repas :", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// 2. Suggérer le planning complet de la semaine (Bouton "🎲 Suggérer la semaine")
+// Route IA : Suggérer la semaine complète
 app.post('/api/ai/suggest-week', async (req, res) => {
   try {
-    const { slots } = req.body; // Liste des créneaux [{ id, label }]
-    const prompt = `Tu es un chef cuisinier familial français. Génère un planning complet et varié de repas familiaux pour les créneaux suivants :
+    const { slots } = req.body;
+    const prompt = `Génère un planning de repas familiaux variés pour les créneaux suivants :
 ${slots.map(s => `- ID: "${s.id}", Créneau: "${s.label}"`).join('\n')}
 
-Veille à équilibrer les repas : alterne poissons, volailles, viandes, légumes et féculents. Préfère des plats familiaux et rapides en semaine, et potentiellement plus conviviaux le week-end.
-
-Réponds obligatoirement avec un objet JSON contenant une clé "meals" qui est une liste de recettes (une par créneau) :
+Réponds UNIQUEMENT avec ce JSON valide :
 {
   "meals": [
     {
-      "slotId": "L'ID du créneau correspondant fourni ci-dessus (ex: fri_eve)",
+      "slotId": "ID exact du créneau",
       "title": "Nom du plat",
       "icon": "Emoji",
-      "category": "Catégorie (ex: Quotidien, Réconfort, Végétarien...)",
+      "category": "Quotidien",
       "ingredients": [
         { "name": "Nom ingrédient", "qty": 500, "unit": "g" }
       ],
-      "steps": "Instructions de préparation claires pour 4 personnes."
+      "steps": "Instructions de préparation."
     }
   ]
 }`;
 
     const result = await callAI([
-      { role: "system", content: "Tu es un assistant culinaire expert qui génère des plannings de repas et répond uniquement en JSON strict." },
+      { role: "system", content: "Tu es un assistant culinaire qui répond uniquement en JSON strict." },
       { role: "user", content: prompt }
     ]);
 
-    // Ajout d'identifiants uniques pour chaque recette générée
     const mealsWithIds = (result.meals || []).map((m, index) => ({
       ...m,
       id: 'r_ai_' + Date.now() + '_' + index
@@ -211,11 +193,9 @@ Réponds obligatoirement avec un objet JSON contenant une clé "meals" qui est u
 
     res.json(mealsWithIds);
   } catch (err) {
-    console.error("Erreur IA semaine :", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Démarrage du serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Serveur actif sur le port ${PORT}`));
