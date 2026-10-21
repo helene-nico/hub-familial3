@@ -102,7 +102,6 @@ window.updateDefaultPortions = function(val) {
   defaultPortions = Math.max(1, parseInt(val, 10) || 4);
   localStorage.setItem('default_meal_portions', defaultPortions);
 
-  // Applique à tous les repas déjà configurés
   Object.keys(weeklyPlan).forEach(slotId => {
     if (weeklyPlan[slotId]) {
       weeklyPlan[slotId].portions = defaultPortions;
@@ -140,7 +139,6 @@ window.renderMeals = function() {
     const isWeekend = (day.id === 'sat' || day.id === 'sun');
     dayCard.className = `meal-day-card ${isWeekend ? 'weekend' : ''}`;
     
-    // Libellé contextuel pour les vendredis
     let badgeLabel = isWeekend ? 'Week-end' : 'Semaine';
     if (day.id === 'fri_start') badgeLabel = 'Départ';
     if (day.id === 'fri_end') badgeLabel = 'Fin de cycle';
@@ -152,7 +150,6 @@ window.renderMeals = function() {
       const customTitle = meal ? (meal.customTitle || (recipe ? recipe.title : '')) : '';
       const displayIcon = recipe ? (recipe.icon || '🍽️') : '🍽️';
 
-      // Repère visuel Midi / Soir
       const isMidi = slot.label.toLowerCase().includes('midi');
       const timeIcon = isMidi ? '☀️' : '🌙';
       const slotClass = isMidi ? 'slot-midi' : 'slot-soir';
@@ -198,45 +195,6 @@ window.renderMeals = function() {
         <span class="meal-day-badge">${badgeLabel}</span>
       </div>
       <div style="display:flex; flex-direction:column; gap:8px;">${slotsHtml}</div>
-    `;
-    container.appendChild(dayCard);
-  });
-};
-      // Si le repas est défini -> clic affiche la recette ; si vide -> clic ouvre le choix
-      const clickAction = customTitle 
-        ? `viewMealRecipe('${slot.id}')` 
-        : `openMealPicker('${slot.id}', '${day.name} ${slot.label}')`;
-
-      return `
-        <div class="meal-slot-box">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span class="meal-slot-label">${slot.label}</span>
-            <div style="display:flex; align-items:center; gap:4px;">
-              <button type="button" class="btn-primary" style="padding:2px 8px; font-size:0.75rem; border-radius:4px; height:auto; min-height:0; line-height:1.2;" 
-                onclick="swapMealSlot('${slot.id}', event)" title="Demander une idée à l'IA en ligne">🔄 IA</button>
-              <span style="font-size:0.75rem; color:var(--text-muted); margin-left:4px;">👥</span>
-              <input type="number" min="1" max="20" value="${portions}" class="meal-portions-input" 
-                onchange="updateMealPortions('${slot.id}', this.value)" title="Nombre de personnes">
-            </div>
-          </div>
-          <div class="meal-slot-content ${customTitle ? 'filled' : 'empty'}" onclick="${clickAction}">
-            ${customTitle ? `
-              <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:1.6rem; line-height:1;">${displayIcon}</span>
-                <div style="font-weight:700; font-size:0.9rem; line-height:1.2;">${customTitle}</div>
-              </div>
-              ${recipe ? `<span class="badge badge-cat" style="margin-top:8px; display:inline-block;">${recipe.category}</span>` : ''}
-            ` : `
-              <span style="color:var(--text-muted); font-size:0.85rem; text-align:center;">+ Choisir un repas</span>
-            `}
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    dayCard.innerHTML = `
-      <div class="meal-day-header">${day.name}</div>
-      <div style="display:flex; flex-direction:column; gap:10px;">${slotsHtml}</div>
     `;
     container.appendChild(dayCard);
   });
