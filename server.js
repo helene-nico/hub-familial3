@@ -27,7 +27,7 @@ const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const AI_KEY = process.env.AI_API_KEY;
 
-// Diagnostic au lancement dans les logs Render
+// Diagnostic au lancement
 console.log("--- CONFIGURATION DU SERVEUR ---");
 console.log("Dossier statique :", publicDir);
 console.log("UPSTASH_REDIS :", (REDIS_URL && REDIS_TOKEN) ? "CONNECTÉ" : "MANQUANT");
@@ -50,7 +50,7 @@ async function upstash(commandArray) {
   return data;
 }
 
-// Appel sécurisé à Groq ou OpenAI
+// Appel vers Groq ou OpenAI
 async function callAI(messages) {
   if (!AI_KEY) {
     throw new Error("Clé AI_API_KEY non renseignée sur Render.");
@@ -61,7 +61,7 @@ async function callAI(messages) {
 
   if (AI_KEY.startsWith('gsk_')) {
     apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-    model = 'llama-3.1-8b-instant'; // Modèle Groq actif, gratuit et ultrarapide
+    model = 'openai/gpt-oss-20b'; // Modèle officiel Groq actif, gratuit et ultrarapide
   }
 
   const response = await fetch(apiUrl, {
@@ -87,14 +87,14 @@ async function callAI(messages) {
   return JSON.parse(json.choices[0].message.content);
 }
 
-// Accueil
+// Route d'accueil
 app.get('/', (req, res) => {
   const file = path.join(publicDir, 'index.html');
   if (fs.existsSync(file)) res.sendFile(file);
   else res.status(404).send("Fichier index.html introuvable.");
 });
 
-// Synchronisation Upstash
+// Routes de synchronisation Upstash
 app.get('/api/sync', async (req, res) => {
   try {
     const data = await upstash(["GET", "hub_data"]);
