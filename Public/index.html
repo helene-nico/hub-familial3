@@ -186,21 +186,21 @@
 
   <!-- ================= ONGLET 5 : MENUS & REPAS ================= -->
   <section id="tab-meals" class="tab-content">
-    <!-- Barre d'outils : Convives par défaut + Menu Options -->
-    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+    <!-- Barre d'outils : Convives + Menu Options (adapté mobile et bureau) -->
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
       
-      <!-- Sélecteur de convives par défaut (SEUL élément fixe) -->
-      <div style="display: flex; align-items: center; gap: 8px; background: var(--card-bg); padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
-        <span style="font-size: 0.9rem; font-weight: 700;">👥 Convives par défaut :</span>
-        <input type="number" id="defaultPortionsInput" min="1" max="20" value="4" style="width: 55px; padding: 4px 8px; text-align: center; font-weight: bold;" onchange="updateDefaultPortions(this.value)">
+      <!-- Sélecteur de convives -->
+      <div style="display: flex; align-items: center; gap: 8px; background: var(--card-bg); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+        <span style="font-size: 0.88rem; font-weight: 700;">👥 Convives :</span>
+        <input type="number" id="defaultPortionsInput" min="1" max="20" value="4" style="width: 50px; padding: 4px 6px; text-align: center; font-weight: bold;" onchange="updateDefaultPortions(this.value)">
       </div>
 
-      <!-- Menu déroulant Options -->
-      <div style="position: relative;">
-        <button class="btn-nav" id="btnMealsOptions" onclick="toggleMealsOptionsMenu(event)" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 700;">
+      <!-- Menu déroulant Options (calé à droite pour éviter tout débordement) -->
+      <div style="position: relative; margin-left: auto;">
+        <button class="btn-nav" id="btnMealsOptions" onclick="toggleMealsOptionsMenu(event)" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700;">
           ⚙️ Options ▾
         </button>
-        <div id="mealsDropdownMenu" class="dropdown-menu hidden" style="position: absolute; right: 0; top: 100%; margin-top: 6px; min-width: 220px; z-index: 100;">
+        <div id="mealsDropdownMenu" class="dropdown-menu hidden" style="position: absolute; right: 0; top: 100%; margin-top: 6px; min-width: 220px; max-width: calc(100vw - 32px); z-index: 100;">
           <button class="dropdown-item" onclick="closeMealsDropdown(); autoSuggestWeek();">🎲 Suggérer la semaine (IA)</button>
           <button class="dropdown-item" onclick="closeMealsDropdown(); openGroceryModal();">🛒 Liste de courses</button>
           <button class="dropdown-item" onclick="closeMealsDropdown(); printRecipeBook();">📖 Cahier de recettes (PDF)</button>
