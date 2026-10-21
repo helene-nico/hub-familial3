@@ -63,9 +63,9 @@ async function callAI(messages) {
   let apiUrl = 'https://api.openai.com/v1/chat/completions'; // Par défaut (si sk-...)
   let model = 'gpt-4o-mini';
 
-  if (AI_KEY.startsWith('gsk_')) {
+ if (AI_KEY.startsWith('gsk_')) {
     apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-    model = 'llama-3.3-70b-versatile'; // Modèle Groq extrêmement rapide et gratuit
+    model = 'llama-3.1-8b-instant'; // Modèle actif et gratuit pour tous les comptes Groq
   }
 
   const response = await fetch(apiUrl, {
