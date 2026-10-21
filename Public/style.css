@@ -261,12 +261,12 @@ body {
 }
 
 /* ==========================================================================
-   TABLEAU DE BORD (DASHBOARD) - ACCUEIL EN 2 COLONNES
+   TABLEAU DE BORD (DASHBOARD) - 2 COLONNES STRICTES
    ========================================================================== */
 .dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr); /* 2 colonnes strictes */
-  gap: 16px;
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important; /* 2 colonnes garanties */
+  gap: 12px !important;
   margin-top: 10px;
 }
 
@@ -274,12 +274,12 @@ body {
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 22px 18px;
-  display: flex;
+  padding: 16px 12px;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  min-height: 105px;
+  min-height: 95px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-sm);
   position: relative;
@@ -309,15 +309,60 @@ body {
 
 .dash-widget-icon {
   font-size: 2rem;
-  margin-right: 12px;
+  margin-right: 10px;
+  flex-shrink: 0;
 }
 
 .dash-widget-title {
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+/* ==========================================================================
+   ADAPTATION SMARTPHONE (ÉCRANS < 480PX)
+   ========================================================================== */
+@media (max-width: 480px) {
+  /* On force le maintien des 2 colonnes */
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* Disposition verticale de l'icône et du titre pour éviter de tronquer */
+  .dash-widget {
+    flex-direction: column !important;
+    padding: 14px 6px !important;
+    min-height: 90px !important;
+    text-align: center !important;
+  }
+
+  .dash-widget-icon {
+    margin-right: 0 !important;
+    margin-bottom: 6px !important;
+    font-size: 1.8rem !important;
+  }
+
+  .dash-widget-title {
+    font-size: 0.85rem !important;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+
+  .grid-cards {
+    gap: 8px;
+  }
+  .card {
+    padding: 12px;
+  }
+  .card-value {
+    font-size: 1.35rem;
+  }
+  .card-title {
+    font-size: 0.68rem;
+  }
 }
 
 /* ==========================================================================
@@ -364,25 +409,6 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
-}
-
-@media (max-width: 480px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr; /* Bascule sur 1 colonne sur les téléphones très étroits */
-    gap: 12px;
-  }
-  .grid-cards {
-    gap: 8px;
-  }
-  .card {
-    padding: 12px;
-  }
-  .card-value {
-    font-size: 1.35rem;
-  }
-  .card-title {
-    font-size: 0.68rem;
-  }
 }
 
 .card {
