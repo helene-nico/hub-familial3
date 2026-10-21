@@ -53,6 +53,7 @@ function getAllRecipes() {
   return [...customRecipes, ...filteredDefaults];
 }
 
+// Semaine débutant le Vendredi Soir et finissant le Vendredi Midi
 const MEAL_DAYS = [
   { id: 'fri_start', name: 'Vendredi', slots: [{ id: 'fri_eve', label: 'Soir' }] },
   { id: 'sat', name: 'Samedi', slots: [{ id: 'sat_mid', label: 'Midi' }, { id: 'sat_eve', label: 'Soir' }] },
@@ -105,7 +106,7 @@ window.renderMeals = function() {
             <span class="meal-slot-label">${slot.label}</span>
             <div style="display:flex; align-items:center; gap:4px;">
               <button type="button" class="btn-primary" style="padding:2px 8px; font-size:0.75rem; border-radius:4px; height:auto; min-height:0; line-height:1.2;" 
-                onclick="swapMealSlot('${slot.id}', event)" title="Suggérer un autre plat">🔄 IA</button>
+                onclick="swapMealSlot('${slot.id}', event)" title="Demander une idée à l'IA en ligne">🔄 IA</button>
               <span style="font-size:0.75rem; color:var(--text-muted); margin-left:4px;">👥</span>
               <input type="number" min="1" max="20" value="${portions}" class="meal-portions-input" 
                 onchange="updateMealPortions('${slot.id}', this.value)" title="Nombre de personnes">
@@ -144,28 +145,64 @@ window.updateMealPortions = function(slotId, val) {
   saveMealsPlan();
 };
 
-window.swapMealSlot = function(slotId, event) {
+// --- SUGGESTION D'UN REPAS VIA IA ---
+window.swapMealSlot = async function(slotId, event) {
   if (event) {
     event.stopPropagation();
     event.preventDefault();
   }
-  const currentMeal = weeklyPlan[slotId];
-  const currentRecipeId = currentMeal ? currentMeal.recipeId : null;
-  const allRecipes = getAllRecipes();
-  
-  let available = allRecipes.filter(r => r.id !== currentRecipeId);
-  if (available.length === 0) available = allRecipes;
-  
-  const randomRecipe = available[Math.floor(Math.random() * available.length)];
-  
-  weeklyPlan[slotId] = {
-    recipeId: randomRecipe.id,
-    customTitle: randomRecipe.title,
-    portions: currentMeal ? currentMeal.portions : defaultPortions
-  };
-  
-  saveMealsPlan();
-  renderMeals();
+
+  const btn = event ? event.currentTarget : null;
+  const originalText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.textContent = '⏳...';
+    btn.disabled = true;
+  }
+
+  try {
+    let slotLabel = slotId;
+    MEAL_DAYS.forEach(d => {
+      const s = d.slots.find(x => x.id === slotId);
+      if (s) slotLabel = `${d.name} ${s.label}`;
+    });
+
+    const existingMeals = Object.values(weeklyPlan).map(m => m.customTitle).filter(Boolean);
+
+    const res = await fetch('/api/ai/suggest-meal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slotLabel, existingMeals })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Erreur serveur (${res.status})`);
+    }
+
+    const recipe = await res.json();
+
+    // Enregistrement de la nouvelle recette dans la base locale
+    customRecipes.push(recipe);
+    localStorage.setItem('custom_recipes', JSON.stringify(customRecipes));
+
+    // Assignation au créneau
+    const currentMeal = weeklyPlan[slotId];
+    weeklyPlan[slotId] = {
+      recipeId: recipe.id,
+      customTitle: recipe.title,
+      portions: currentMeal ? currentMeal.portions : defaultPortions
+    };
+
+    saveMealsPlan();
+    renderMeals();
+  } catch (err) {
+    alert("Impossible de générer le repas par l'IA : " + err.message);
+  } finally {
+    if (btn) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
+  }
 };
 
 // --- GESTION DU CHOIX DE RECETTE ---
@@ -340,7 +377,6 @@ window.saveRecipe = function(event) {
     if (existingIndex !== -1) {
       customRecipes[existingIndex] = updatedRecipe;
     } else {
-      // Si on modifie une recette du catalogue par défaut, on l'enregistre en personnalisation
       customRecipes.push(updatedRecipe);
     }
   } else {
@@ -372,7 +408,6 @@ window.deleteCurrentRecipe = function() {
     customRecipes = customRecipes.filter(r => r.id !== editId);
     localStorage.setItem('custom_recipes', JSON.stringify(customRecipes));
 
-    // Retirer du planning si elle était affectée
     Object.keys(weeklyPlan).forEach(slot => {
       if (weeklyPlan[slot] && weeklyPlan[slot].recipeId === editId) {
         delete weeklyPlan[slot];
@@ -388,26 +423,61 @@ window.deleteCurrentRecipe = function() {
   }
 };
 
-// --- GESTION DE LA SEMAINE ---
-window.autoSuggestWeek = function() {
-  if (!confirm("Remplacer le planning par une sélection automatique et équilibrée ?")) return;
-  const allRecipes = getAllRecipes();
-  const shuffled = [...allRecipes].sort(() => 0.5 - Math.random());
-  let index = 0;
-  MEAL_DAYS.forEach(day => {
-    day.slots.forEach(slot => {
-      const recipe = shuffled[index % shuffled.length];
-      const prevPortions = weeklyPlan[slot.id]?.portions || defaultPortions;
-      weeklyPlan[slot.id] = {
-        recipeId: recipe.id,
-        customTitle: recipe.title,
+// --- GESTION DE LA SEMAINE PAR IA ---
+window.autoSuggestWeek = async function() {
+  if (!confirm("Générer un planning complet pour la semaine grâce à l'IA sur Internet ?")) return;
+
+  const btn = document.querySelector('button[onclick="autoSuggestWeek()"]');
+  const originalText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.textContent = '⏳ Génération en cours...';
+    btn.disabled = true;
+  }
+
+  try {
+    const slots = [];
+    MEAL_DAYS.forEach(day => {
+      day.slots.forEach(slot => {
+        slots.push({ id: slot.id, label: `${day.name} ${slot.label}` });
+      });
+    });
+
+    const res = await fetch('/api/ai/suggest-week', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slots })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Erreur serveur (${res.status})`);
+    }
+
+    const generatedMeals = await res.json();
+
+    generatedMeals.forEach(meal => {
+      customRecipes.push(meal);
+
+      const prevPortions = weeklyPlan[meal.slotId]?.portions || defaultPortions;
+      weeklyPlan[meal.slotId] = {
+        recipeId: meal.id,
+        customTitle: meal.title,
         portions: prevPortions
       };
-      index++;
     });
-  });
-  saveMealsPlan();
-  renderMeals();
+
+    localStorage.setItem('custom_recipes', JSON.stringify(customRecipes));
+    saveMealsPlan();
+    renderMeals();
+    alert("Votre menu de la semaine a été généré avec succès par l'IA ! 🎉");
+  } catch (err) {
+    alert("Erreur lors de la génération IA : " + err.message);
+  } finally {
+    if (btn) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
+  }
 };
 
 window.clearWholeWeek = function() {
