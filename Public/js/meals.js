@@ -854,7 +854,7 @@ window.copyGroceryToClipboard = function() {
   navigator.clipboard.writeText(textToCopy.trim()).then(() => alert("Liste de courses copiée dans le presse-papier !"));
 };
 
-// --- MENU FRIGO : PRÉSENTATION CALENDRIER A4 SUR UNE SEULE PAGE ---
+// --- MENU FRIGO : SEMAISIER A4 PAYSAGE AVEC RETOUR À LA LIGNE ---
 window.printFridgeMenu = async function() {
   const allRecipes = getAllRecipes();
   let hasMeals = false;
@@ -899,8 +899,8 @@ window.printFridgeMenu = async function() {
 
     if (!slot) {
       return `
-        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 8px; height: 60px; display: flex; align-items: center; justify-content: center;">
-          <span style="font-size: 0.75rem; color: #94a3b8; font-style: italic;">—</span>
+        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 6px 8px; min-height: 52px; display: flex; align-items: center; justify-content: center;">
+          <span style="font-size: 0.72rem; color: #94a3b8; font-style: italic;">—</span>
         </div>
       `;
     }
@@ -911,9 +911,9 @@ window.printFridgeMenu = async function() {
 
     if (!title.trim()) {
       return `
-        <div style="background: #f8fafc; border: 1px dashed #e2e8f0; border-radius: 8px; padding: 8px; height: 60px; display: flex; flex-direction: column; justify-content: space-between;">
-          <span style="font-size: 0.68rem; font-weight: 800; text-transform: uppercase; color: ${tagColor};">${label}</span>
-          <span style="font-size: 0.78rem; color: #cbd5e1; font-style: italic; text-align: center;">Non planifié</span>
+        <div style="background: #f8fafc; border: 1px dashed #e2e8f0; border-radius: 6px; padding: 6px 8px; min-height: 52px; display: flex; flex-direction: column; justify-content: space-between;">
+          <span style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: ${tagColor};">${label}</span>
+          <span style="font-size: 0.72rem; color: #cbd5e1; font-style: italic; text-align: center;">Non planifié</span>
           <span></span>
         </div>
       `;
@@ -923,14 +923,16 @@ window.printFridgeMenu = async function() {
     const portions = meal.portions || defaultPortions;
 
     return `
-      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; height: 60px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; min-height: 52px; height: auto; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); box-sizing: border-box;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 0.68rem; font-weight: 800; text-transform: uppercase; color: ${tagColor};">${label}</span>
-          <span style="font-size: 0.68rem; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 1px 5px; border-radius: 4px;">👥 ${portions}</span>
+          <span style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: ${tagColor};">${label}</span>
+          <span style="font-size: 0.62rem; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 1px 4px; border-radius: 4px;">👥 ${portions}</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 1.3rem; line-height: 1; flex-shrink: 0;">${icon}</span>
-          <span style="font-weight: 700; font-size: 0.85rem; color: #0f172a; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${title}</span>
+        <div style="display: flex; align-items: flex-start; gap: 6px; width: 100%;">
+          <span style="font-size: 1.2rem; line-height: 1.2; flex-shrink: 0;">${icon}</span>
+          <div style="font-weight: 700; font-size: 0.78rem; color: #0f172a; line-height: 1.2; flex: 1; min-width: 0; white-space: normal; word-break: break-word; overflow-wrap: break-word;">
+            ${title}
+          </div>
         </div>
       </div>
     `;
@@ -945,19 +947,19 @@ window.printFridgeMenu = async function() {
     let badge = '';
     if (isWeekend) badge = 'Week-end';
     else if (day.id === 'fri_start') badge = 'Départ';
-    else if (day.id === 'fri_end') badge = 'Fin de cycle';
+    else if (day.id === 'fri_end') badge = 'Fin';
 
     const headerBg = isWeekend ? '#fef3c7' : '#e0f2fe';
     const headerColor = isWeekend ? '#b45309' : '#0369a1';
     const borderColor = isWeekend ? '#fde68a' : '#bae6fd';
 
     return `
-      <div style="background: #ffffff; border: 1.5px solid ${borderColor}; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; height: 185px;">
-        <div style="background: ${headerBg}; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid ${borderColor};">
-          <span style="font-weight: 900; font-size: 0.95rem; text-transform: uppercase; color: ${headerColor}; letter-spacing: 0.03em;">${day.name}</span>
-          ${badge ? `<span style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: ${headerColor}; opacity: 0.85;">${badge}</span>` : ''}
+      <div style="background: #ffffff; border: 1.5px solid ${borderColor}; border-radius: 10px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; min-height: 160px; height: auto;">
+        <div style="background: ${headerBg}; padding: 5px 8px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid ${borderColor};">
+          <span style="font-weight: 900; font-size: 0.88rem; text-transform: uppercase; color: ${headerColor}; letter-spacing: 0.03em;">${day.name}</span>
+          ${badge ? `<span style="font-size: 0.62rem; font-weight: 800; text-transform: uppercase; color: ${headerColor}; opacity: 0.85;">${badge}</span>` : ''}
         </div>
-        <div style="padding: 8px; display: flex; flex-direction: column; gap: 6px; flex: 1; justify-content: center;">
+        <div style="padding: 6px; display: flex; flex-direction: column; gap: 6px; flex: 1; justify-content: center;">
           ${renderMealBlock(midSlot, true)}
           ${renderMealBlock(eveSlot, false)}
         </div>
@@ -967,8 +969,8 @@ window.printFridgeMenu = async function() {
 
   const container = document.createElement('div');
   container.style.width = '297mm';
-  container.style.height = '210mm';
-  container.style.padding = '12mm 15mm';
+  container.style.minHeight = '210mm';
+  container.style.padding = '10mm 12mm';
   container.style.color = '#0f172a';
   container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   container.style.background = '#f8fafc';
@@ -978,19 +980,19 @@ window.printFridgeMenu = async function() {
   container.style.justifyContent = 'space-between';
 
   container.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 1.8rem;">🍽️</span>
-        <h1 style="font-size: 1.5rem; margin: 0; color: #0f172a; font-weight: 900; letter-spacing: -0.02em;">Menu de la Semaine</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 1.6rem;">🍽️</span>
+        <h1 style="font-size: 1.4rem; margin: 0; color: #0f172a; font-weight: 900; letter-spacing: -0.02em;">Menu de la Semaine</h1>
       </div>
-      <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Hub Familial • Planning du vendredi au vendredi</span>
+      <span style="font-size: 0.75rem; font-weight: 600; color: #64748b;">Hub Familial • Planning du vendredi au vendredi</span>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0;">
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex: 1;">
       ${cardsHtml}
     </div>
 
-    <div style="text-align: center; font-size: 0.75rem; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+    <div style="text-align: center; font-size: 0.72rem; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 8px;">
       Bon appétit ! 🥗 Pensez à vérifier la liste de courses avant de partir.
     </div>
   `;
