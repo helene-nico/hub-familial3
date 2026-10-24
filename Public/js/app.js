@@ -157,25 +157,33 @@ async function renderDashboard() {
   // 1. Tuile Budget
   const widgetFin = document.getElementById('widget-finances');
   if (widgetFin) {
-    widgetFin.style.display = (userWidgets.finances === false) ? 'none' : 'flex';
+    const hide = (userWidgets.finances === false);
+    widgetFin.classList.toggle('hidden', hide);
+    widgetFin.style.display = hide ? 'none' : 'flex';
   }
 
   // 2. Tuile Menus
   const widgetMeals = document.getElementById('widget-meals');
   if (widgetMeals) {
-    widgetMeals.style.display = (userWidgets.meals === false) ? 'none' : 'flex';
+    const hide = (userWidgets.meals === false);
+    widgetMeals.classList.toggle('hidden', hide);
+    widgetMeals.style.display = hide ? 'none' : 'flex';
   }
 
   // 3. Tuile Missions
   const widgetMis = document.getElementById('widget-missions');
   if (widgetMis) {
-    widgetMis.style.display = (userWidgets.missions === false) ? 'none' : 'flex';
+    const hide = (userWidgets.missions === false);
+    widgetMis.classList.toggle('hidden', hide);
+    widgetMis.style.display = hide ? 'none' : 'flex';
   }
 
   // 4. Tuile Documents
   const widgetDoc = document.getElementById('widget-documents');
   if (widgetDoc) {
-    widgetDoc.style.display = (userWidgets.documents === false) ? 'none' : 'flex';
+    const hide = (userWidgets.documents === false);
+    widgetDoc.classList.toggle('hidden', hide);
+    widgetDoc.style.display = hide ? 'none' : 'flex';
   }
 }
 
