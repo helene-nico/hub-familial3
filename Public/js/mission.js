@@ -137,6 +137,10 @@ window.passMissionTurn = function(missionId) {
 
 
 window.selectKid = function(id) {
+  // Sécurité : empêche un enfant de changer de profil
+  if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'child') {
+    return;
+  }
   window.activeKidId = id;
   renderKids();
 };
@@ -503,6 +507,17 @@ function renderKids() {
   if (parentView) parentView.classList.toggle("hidden", !window.isParentMode);
   if (childView) childView.classList.toggle("hidden", window.isParentMode);
 
+  // 1. Liaison automatique avec le profil connecté
+  const isChild = (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'child');
+  if (isChild && currentUser.name) {
+    const childName = currentUser.name.trim().toLowerCase();
+    const linkedKid = state.kids.find(k => k.name.trim().toLowerCase() === childName)
+      || state.kids.find(k => childName.includes(k.name.trim().toLowerCase()) || k.name.trim().toLowerCase().includes(childName));
+    if (linkedKid) {
+      window.activeKidId = linkedKid.id;
+    }
+  }
+
   if (!state.kids.some(k => String(k.id) === String(window.activeKidId))) {
     window.activeKidId = state.kids.length > 0 ? state.kids[0].id : null;
   }
@@ -511,16 +526,23 @@ function renderKids() {
   if (!window.isParentMode) {
     const kidsBar = document.getElementById("kids-bar");
     if (kidsBar) {
-      kidsBar.innerHTML = state.kids.map(kid => {
-        const age = getAge(kid.birthDate);
-        return `
-          <div class="kid-tab ${String(kid.id) === String(window.activeKidId) ? 'active' : ''} ${kid.present === false ? 'absent' : ''}" onclick="selectKid(${kid.id})">
-            <div class="avatar">${kid.avatar}</div>
-            <div class="name">${kid.name}</div>
-            <div class="age">${age} ans</div>
-          </div>
-        `;
-      }).join("");
+      if (isChild) {
+        // Masque la barre d'onglets pour que l'enfant ne voie pas ses frères et sœurs
+        kidsBar.style.display = "none";
+      } else {
+        // Affiche tous les enfants pour les parents
+        kidsBar.style.display = "flex";
+        kidsBar.innerHTML = state.kids.map(kid => {
+          const age = getAge(kid.birthDate);
+          return `
+            <div class="kid-tab ${String(kid.id) === String(window.activeKidId) ? 'active' : ''} ${kid.present === false ? 'absent' : ''}" onclick="selectKid(${kid.id})">
+              <div class="avatar">${kid.avatar}</div>
+              <div class="name">${kid.name}</div>
+              <div class="age">${age} ans</div>
+            </div>
+          `;
+        }).join("");
+      }
     }
 
     const activeKid = state.kids.find(k => String(k.id) === String(window.activeKidId));
@@ -543,10 +565,16 @@ function renderKids() {
       if (xpEl) xpEl.textContent = `${currentLevelXp}/10 XP`;
       if (progEl) progEl.style.width = `${progressPercent}%`;
 
+      // 2. Filtre strict : ne charge que les missions de l'enfant connecté
       const kidMissions = state.missions.filter(m => {
         if (m.minAge && kidAge < m.minAge) return false;
         if (m.maxAge && kidAge > m.maxAge) return false;
         if (m.kidId !== 0 && String(m.kidId) !== String(window.activeKidId)) return false;
+        // Pour les tâches tournantes : si ce n'est pas son tour, on ne l'affiche pas
+        if (isChild && m.isRotating) {
+          const currentKid = getMissionTurnKid(m);
+          if (!currentKid || String(currentKid.id) !== String(window.activeKidId)) return false;
+        }
         return true;
       });
 
