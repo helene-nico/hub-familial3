@@ -114,10 +114,12 @@
           <h3 id="activeAccountNameLabel" style="margin: 0; font-size: 1.15rem; font-weight: 800;">Compte</h3>
         </div>
         <div style="display: flex; gap: 8px;">
-          <button class="btn-primary" onclick="openTxModal()">+ Opération</button>
-          <button class="btn-nav" onclick="openEditActiveAccountModal()">⚙️ Gérer</button>
-        </div>
-      </div>
+          <div style="display: flex; gap: 8px;">
+  <button class="btn-primary" onclick="openTxModal()">+ Opération</button>
+  <button class="btn-nav" onclick="openRecurringModal()">🔄 Récurrences</button>
+  <button class="btn-nav" onclick="openEditActiveAccountModal()">⚙️ Gérer</button>
+</div>
+     
 
       <!-- Sélecteur de mois opérationnel -->
       <div class="accounts-overview-section" style="padding: 10px 14px; margin-bottom: 14px;">
