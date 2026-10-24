@@ -259,7 +259,7 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 16px 12px;
-  display: flex !important;
+  display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
