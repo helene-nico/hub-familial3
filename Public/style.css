@@ -703,3 +703,220 @@ input, select, textarea {
     padding: 16px;
   }
 }
+
+/* ==========================================================================
+   EN-TÊTE DU TABLEAU DE BORD & BOUTON PERSONNALISER
+   ========================================================================== */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.dashboard-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.btn-customize {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-customize:hover {
+  background: var(--card-hover);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-customize:active {
+  transform: scale(0.97);
+}
+
+.btn-customize-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ==========================================================================
+   MODALE DE PERSONNALISATION (RESPONSIVE PC & MOBILE)
+   ========================================================================== */
+.modal-custom-dash {
+  width: 100% !important;
+  max-width: 420px !important;
+  padding: 22px !important;
+  box-sizing: border-box !important;
+}
+
+.modal-header-clean {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  gap: 10px;
+}
+
+.modal-close-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.modal-close-btn:hover {
+  background: var(--card-hover);
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.dash-custom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.custom-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  gap: 12px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.custom-card-item:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.custom-card-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.custom-card-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.custom-card-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.custom-card-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* Interrupteurs (Switchs style iOS) */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: var(--border);
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 9999px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #ffffff;
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+input:checked + .slider {
+  background-color: var(--primary);
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* Ajustements Smartphone (< 480px) */
+@media (max-width: 480px) {
+  .dashboard-header {
+    margin-bottom: 14px;
+  }
+  .dashboard-title {
+    font-size: 1.15rem;
+  }
+  .btn-customize {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    gap: 5px;
+  }
+  .modal-custom-dash {
+    width: 94% !important;
+    max-width: 94% !important;
+    padding: 18px 14px !important;
+  }
+  .custom-card-item {
+    padding: 10px 12px;
+  }
+  .custom-card-icon {
+    font-size: 1.4rem;
+  }
+  .custom-card-title {
+    font-size: 0.9rem;
+  }
+  .custom-card-desc {
+    font-size: 0.72rem;
+  }
+}
