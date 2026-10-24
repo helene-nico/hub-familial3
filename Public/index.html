@@ -628,5 +628,102 @@
 <script src="js/documents.js"></script>
 <script src="js/meals.js"></script>
 <script src="js/app.js"></script>
+
+  <!-- ================= MODALE NOUVELLE / MODIFIER OPÉRATION ================= -->
+<div class="modal-overlay" id="txModal" style="display: none;">
+  <div class="modal" style="width: 380px;">
+    <h3 id="txModalTitle" style="margin: 0 0 12px 0;">Nouvelle Opération</h3>
+    <form id="txForm" class="form-vertical" style="gap: 10px;">
+      <input type="hidden" id="editTxId">
+      
+      <div>
+        <label>Type d'opération</label>
+        <select id="txType">
+          <option value="expense">Dépense (-)</option>
+          <option value="income">Revenu (+)</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Description</label>
+        <input type="text" id="txTitle" placeholder="Ex: Courses, Salaire..." required>
+      </div>
+
+      <div>
+        <label>Montant (€)</label>
+        <input type="number" step="0.01" id="txAmount" placeholder="0.00" required>
+      </div>
+
+      <div>
+        <label>Date</label>
+        <input type="date" id="txDate" required>
+      </div>
+
+      <div>
+        <label>Catégorie</label>
+        <select id="txCategory">
+          <option value="">-- Aucune --</option>
+        </select>
+      </div>
+
+      <div id="txRecurringGroup" style="margin-top: 4px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem;">
+          <input type="checkbox" id="txRecurring">
+          <span>Répéter tous les mois (Récurrent)</span>
+        </label>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+        <button type="button" id="btnDeleteTxModal" class="btn-danger btn-small" onclick="deleteCurrentModalTx()" style="display: none;">Supprimer</button>
+        <div style="display: flex; gap: 8px; margin-left: auto;">
+          <button type="button" class="btn-nav" onclick="closeTxModal()">Annuler</button>
+          <button type="submit" class="btn-primary">Enregistrer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ================= MODALE NOUVEAU / MODIFIER COMPTE ================= -->
+<div class="modal-overlay" id="accountModal" style="display: none;">
+  <div class="modal" style="width: 360px;">
+    <h3 id="accountModalTitle" style="margin: 0 0 12px 0;">Nouveau Compte</h3>
+    <form id="accountForm" class="form-vertical" style="gap: 10px;">
+      <input type="hidden" id="editAccountId">
+
+      <div>
+        <label>Nom du compte</label>
+        <input type="text" id="accFormName" placeholder="Ex: Compte Courant" required>
+      </div>
+
+      <div>
+        <label>Émoji / Icône</label>
+        <input type="text" id="accFormIcon" maxlength="4" style="text-align: center; font-size: 1.3rem;" value="💳">
+      </div>
+
+      <div>
+        <label>Solde de départ (€)</label>
+        <input type="number" step="0.01" id="accFormBalance" value="0.00" required>
+      </div>
+
+      <div>
+        <label>Visibilité</label>
+        <select id="accFormSharing">
+          <option value="parents">Parents uniquement</option>
+          <option value="all">Toute la famille</option>
+          <option value="private">Privé (moi uniquement)</option>
+        </select>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+        <button type="button" id="btnDeleteAccount" class="btn-danger btn-small" onclick="deleteCurrentActiveAccount()" style="display: none;">Supprimer</button>
+        <div style="display: flex; gap: 8px; margin-left: auto;">
+          <button type="button" class="btn-nav" onclick="closeAccountModal()">Annuler</button>
+          <button type="submit" class="btn-primary">Enregistrer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
 </body>
 </html>
