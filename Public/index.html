@@ -3,42 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Hub Familial & Logistique</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hub Familial">
+  <meta name="theme-color" content="#4f46e5">
+  <title>Hub Familial &amp; Budget</title>
   
-  <link rel="stylesheet" href="style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  
+  <link rel="stylesheet" href="style.css?v=3">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
-<div class="app-container">
+<!-- ================= ÉCRAN DE CONNEXION ================= -->
+<div id="login-screen">
+  <div class="login-container">
+    <h1 style="font-size: 1.8rem; margin-bottom: 8px;">Hub Familial</h1>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">Sélectionnez votre profil</p>
+    <div class="users-grid" id="loginUsersGrid"></div>
+  </div>
+</div>
 
-  <!-- ================= BARRE DU HAUT : UTILISATEURS & NAVIGATION ================= -->
-  <header class="app-header">
-    <div class="header-left">
-      <div class="profile-dropdown-container">
-        <div class="avatar" id="current-user-avatar" onclick="toggleProfileDropdown()">👤</div>
-        <div class="profile-info" onclick="toggleProfileDropdown()">
-          <span class="user-name" id="current-user-name">Chargement...</span>
-          <span class="user-role" id="current-user-role">...</span>
-        </div>
-        
-        <div class="profile-dropdown-menu" id="profile-dropdown-menu">
-          <div class="dropdown-header">Changer d'utilisateur</div>
-          <div id="users-dropdown-list"></div>
-        </div>
-      </div>
+<!-- ================= CONTENEUR PRINCIPAL ================= -->
+<div class="container hidden" id="app-container">
+  
+  <!-- Barre Supérieure UNIQUE -->
+  <div class="top-bar">
+    <button id="btn-back-dashboard" class="btn-primary hidden" onclick="switchMainTab('dashboard')" style="font-size: 0.9rem;">
+      🏠 Accueil
+    </button>
+
+    <div class="user-badge" id="topUserBadge">
+      <span class="avatar" id="topAvatar">👤</span>
+      <span class="name" id="topUserName">Utilisateur</span>
     </div>
 
-    <!-- Indicateur d'état du réseau (en ligne / hors ligne) -->
-    <div id="network-status" class="network-badge online">
-      <span class="dot"></span> <span class="net-text">En ligne</span>
-    </div>
-
-    <div class="header-right">
+    <div class="top-bar-actions">
       <button id="btn-parent-mode" class="btn-nav" onclick="openParentPinModal()" style="display: none;">
         🔒 Espace Parents
       </button>
@@ -46,39 +46,43 @@
       <button id="btn-open-settings" class="btn-icon" onclick="openGeneralSettingsModal()" title="Paramètres">
         ⚙️
       </button>
-    </div>
-  </header>
 
-  <!-- ================= NAVIGATION SECONDAIRE / RETOUR ================= -->
-  <nav class="sub-nav-bar" id="subNavBar" style="display: none;">
-    <button class="btn-nav" onclick="switchMainTab('dashboard')">🏠 Tableau de bord</button>
-    <div class="sub-nav-title" id="sub-nav-current-title">Section</div>
-  </nav>
+      <button class="btn-icon" onclick="logout()" title="Déconnexion">
+        🚪
+      </button>
+    </div>
+  </div>
 
   <!-- ================= ONGLET 1 : TABLEAU DE BORD (ACCUEIL) ================= -->
   <section id="tab-dashboard" class="tab-content active">
-    <div class="dash-top-bar">
-      <h2>Tableau de bord</h2>
+    <div class="dashboard-header">
+      <h2 class="dashboard-title">Tableau de bord</h2>
       <button class="btn-customize" onclick="openDashboardCustomModal()" title="Personnaliser les tuiles">
-        <span class="btn-customize-icon">⚙️</span>
-        <span class="btn-customize-label">Personnaliser</span>
+        <span class="btn-customize-icon">🎨</span>
+        <span class="btn-customize-text">Personnaliser</span>
       </button>
     </div>
 
-    <!-- Grille dynamique des modules -->
-    <div class="dashboard-grid" id="dashboard-grid">
-      <div class="dash-widget" id="widget-missions" onclick="switchMainTab('missions')">
-        <span class="dash-widget-icon">⭐</span>
-        <span class="dash-widget-title">Missions</span>
+    <div class="dashboard-grid">
+      <!-- Tuile Budget -->
+      <div class="dash-widget" id="widget-finances" onclick="switchMainTab('comptes')">
+        <span class="dash-widget-icon">💰</span>
+        <span class="dash-widget-title">Budget</span>
       </div>
-      <div class="dash-widget" id="widget-comptes" onclick="switchMainTab('comptes')">
-        <span class="dash-widget-icon">💳</span>
-        <span class="dash-widget-title">Comptes</span>
-      </div>
-      <div class="dash-widget" id="widget-repas" onclick="switchMainTab('repas')">
+
+      <!-- Tuile Menus -->
+      <div class="dash-widget" id="widget-meals" onclick="switchMainTab('meals')">
         <span class="dash-widget-icon">🍽️</span>
-        <span class="dash-widget-title">Repas & Menus</span>
+        <span class="dash-widget-title">Menus &amp; Recettes</span>
       </div>
+
+      <!-- Tuile Missions -->
+      <div class="dash-widget" id="widget-missions" onclick="switchMainTab('missions')">
+        <span class="dash-widget-icon">🎯</span>
+        <span class="dash-widget-title">Étoiles &amp; Missions</span>
+      </div>
+
+      <!-- Tuile Documents -->
       <div class="dash-widget" id="widget-documents" onclick="switchMainTab('documents')">
         <span class="dash-widget-icon">📁</span>
         <span class="dash-widget-title">Documents</span>
@@ -103,7 +107,7 @@
     <!-- VUE 2 : DÉTAIL DU COMPTE SÉLECTIONNÉ (Masquée par défaut) -->
     <div id="budget-detail-view" class="hidden">
       
-      <!-- En-tête : retour aux comptes + nom du compte actif + récurrences -->
+      <!-- En-tête : retour aux comptes + nom du compte actif -->
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <button class="btn-nav" onclick="showBudgetAccountsView()">◀ Comptes</button>
@@ -116,7 +120,7 @@
         </div>
       </div>
 
-      <!-- Sélecteur de mois opérationnel avec flèches simples -->
+      <!-- Sélecteur de mois opérationnel -->
       <div class="accounts-overview-section" style="padding: 10px 14px; margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <button class="btn-nav" onclick="changeMonth(-1)" aria-label="Mois précédent">◀</button>
@@ -140,196 +144,226 @@
       <!-- Filtre des opérations pointées -->
       <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin: 16px 0 8px 0;">
         <label class="checkbox-label" style="font-size: 0.85rem; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-          <input type="checkbox" id="hideClearedToggle" onchange="renderBudget()">
-          <span>Masquer les opérations déjà pointées</span>
+          <input type="checkbox" id="toggleCleared" onchange="toggleShowCleared()">
+          <span>Afficher les opérations déjà pointées</span>
         </label>
       </div>
 
-      <!-- Tableau principal des opérations du mois -->
-      <div class="table-container" style="margin-top: 8px;">
+      <!-- Tableau des opérations du mois -->
+      <div class="table-container">
         <table>
           <thead>
             <tr>
-              <th style="width: 45px; text-align: center;">Pointé</th>
-              <th>Date</th>
-              <th>Opération</th>
-              <th style="text-align: right;">Montant</th>
-              <th style="width: 80px; text-align: center;">Actions</th>
+              <th style="width: 40px; text-align: center;">Pointé</th>
+              <th style="width: 100px;">Date</th>
+              <th>Description / Catégorie</th>
+              <th style="text-align: right; width: 120px;">Montant</th>
+              <th style="width: 80px; text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody id="txTableBody"></tbody>
         </table>
       </div>
 
-      <!-- Graphique / Répartition par catégorie -->
-      <div style="margin-top: 24px;">
-        <h4 style="margin: 0 0 12px 0; font-size: 1rem;">Dépenses par catégorie (Ce mois)</h4>
-        <div id="categoryBreakdownContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
-      </div>
     </div>
+
   </section>
 
-  <!-- ================= ONGLET 3 : MISSIONS & ÉTOILES ================= -->
+  <!-- ================= ONGLET 3 : ÉTOILES & MISSIONS ================= -->
   <section id="tab-missions" class="tab-content">
-    <div class="kids-bar" id="kidsBar"></div>
     
-    <div class="missions-dashboard-content" id="missionsDashboardContent">
-      <div class="kid-summary-card">
-        <div class="kid-summary-header">
-          <div class="kid-summary-identity">
-            <span class="kid-big-avatar" id="kidCardAvatar">🧒</span>
-            <div class="kid-summary-meta">
-              <h3 id="kidCardName">Enfant</h3>
-              <div class="stars-counter-badge">
-                <span class="star-icon">⭐</span>
-                <span class="stars-val" id="kidCardStars">0</span>
-                <span class="stars-label">étoiles</span>
-              </div>
-            </div>
+    <!-- VUE ENFANT -->
+    <div id="child-view">
+      <div class="kids-bar" id="kids-bar"></div>
+
+      <div class="kid-score-card" id="kid-score-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h3 id="active-kid-name" style="margin:0; font-size:1.25rem;">Enfant</h3>
+            <span id="active-kid-level" class="badge badge-cat" style="margin-top:4px;">Niveau 1</span>
           </div>
-          
-          <div class="quick-reward-box" id="quickRewardBox">
-            <span class="quick-reward-label">Prochaine récompense</span>
-            <div class="quick-reward-display" id="quickRewardDisplay">
-              <span class="quick-reward-name" id="kidCardNextReward">Aucune sélectionnée</span>
-              <span class="quick-reward-target" id="kidCardRewardCost"></span>
+          <div style="text-align:right;">
+            <div style="font-size:1.8rem; font-weight:800; color:var(--yellow); line-height:1;">
+              <span id="active-kid-stars">0</span> ⭐
             </div>
-            <div class="progress-bar-bg" style="margin-top: 8px;">
-              <div class="progress-bar-fill" id="kidCardProgressBar" style="width: 0%;"></div>
-            </div>
+            <span id="active-kid-xp" style="font-size:0.75rem; color:var(--text-muted);">0/10 XP</span>
           </div>
+        </div>
+        <div class="xp-bar-bg" style="margin-top:10px;">
+          <div class="xp-bar-fill" id="active-kid-progress" style="width: 0%;"></div>
         </div>
       </div>
 
-      <div class="segmented-control" style="margin: 16px 0;">
-        <button class="seg-btn active" id="btnSubTabMissions" onclick="switchMissionSubTab('missions')">Missions à faire</button>
-        <button class="seg-btn" id="btnSubTabRewards" onclick="switchMissionSubTab('rewards')">Boutique récompenses</button>
-        <button class="seg-btn" id="btnSubTabHistory" onclick="switchMissionSubTab('history')">Historique</button>
+      <!-- Sous-onglets Missions / Récompenses / Famille -->
+      <div class="kids-subtabs-nav">
+        <button id="btn-tab-missions" class="kids-subtab-btn active" onclick="switchKidSubTab('missions')">🎯 Missions</button>
+        <button id="btn-tab-rewards" class="kids-subtab-btn" onclick="switchKidSubTab('rewards')">🎁 Cadeaux</button>
+        <button id="btn-tab-family" class="kids-subtab-btn" onclick="switchKidSubTab('family')">👨‍👩‍👧‍👦 Cagnotte</button>
       </div>
 
-      <div id="subTabPaneMissions" class="subtab-pane active">
-        <div class="missions-grid" id="missionsGrid"></div>
-      </div>
+      <!-- Contenus des sous-onglets -->
+      <div id="tab-missions-sub" class="list-tasks"></div>
+      
+      <div id="tab-rewards-sub" class="list-tasks hidden"></div>
 
-      <div id="subTabPaneRewards" class="subtab-pane">
-        <div class="rewards-grid" id="rewardsGrid"></div>
-      </div>
-
-      <div id="subTabPaneHistory" class="subtab-pane">
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Action</th>
-                <th style="text-align: right;">Impact</th>
-              </tr>
-            </thead>
-            <tbody id="missionHistoryTbody"></tbody>
-          </table>
+      <div id="tab-family-sub" class="list-tasks hidden">
+        <div class="common-pot-card">
+          <div style="font-size:0.9rem; font-weight:700; color:var(--text-muted);">Cagnotte commune</div>
+          <div style="font-size:2.2rem; font-weight:800; color:#ec4899; margin: 4px 0;">
+            <span id="common-stars">0</span> ⭐
+          </div>
+          <button class="btn-primary" onclick="donateToCommon()" style="font-size:0.85rem; padding:6px 14px;">
+            Contribuer à la cagnotte
+          </button>
         </div>
+        <h4 style="margin: 16px 0 10px 0; font-size:1rem;">Récompenses collectives</h4>
+        <div id="family-rewards-list" class="list-tasks"></div>
       </div>
     </div>
-  </section>
 
-  <!-- ================= ONGLET 4 : ESPACE PARENTS ================= -->
-  <section id="tab-parents" class="tab-content">
-    <div id="parent-hub-view">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h3 style="margin: 0; font-size: 1.3rem; font-weight: 800;">Espace de Gestion Parents</h3>
-        <div style="display: flex; gap: 8px;">
+    <!-- VUE PARENT (ESPACE ADMINISTRATION) -->
+    <div id="parent-view" class="hidden">
+      <div class="parent-admin-banner">
+        <div>
+          <span style="font-weight:800; font-size:1.05rem;">🔒 Administration Parentale</span>
+          <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Gérez les routines, validez les étoiles et configurez les comptes.</p>
+        </div>
+        <button class="btn-danger btn-small" onclick="exitParentMode()">Quitter le mode parent</button>
+      </div>
+
+      <!-- Sous-page Principale Parent -->
+      <div id="parent-main-view">
+        <div class="parent-actions-grid">
+          <button class="btn-nav" onclick="openParentDomainPage('kids')">👥 Enfants</button>
+          <button class="btn-nav" onclick="openParentDomainPage('missions')">🎯 Tâches</button>
+          <button class="btn-nav" onclick="openParentDomainPage('rewards')">🎁 Récompenses</button>
           <button class="btn-nav" onclick="openChangePinModal()">🔑 Code PIN</button>
-          <button class="btn-danger" onclick="exitParentMode()">Quitter le mode parent</button>
+        </div>
+
+        <div class="parent-section-card">
+          <h4>⏳ Missions en attente de validation</h4>
+          <div id="pending-list" class="list-tasks" style="margin-top:10px;"></div>
+        </div>
+
+        <div class="parent-section-card">
+          <h4>⭐ Ajuster les étoiles individuelles</h4>
+          <div id="adjust-stars-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+        </div>
+
+        <div class="parent-section-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h4>🎁 Cagnotte commune : <span id="parent-common-stars" style="color:#ec4899;">0</span> ⭐</h4>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-nav btn-small" onclick="adjustCommonStars(-1)">-1</button>
+              <button class="btn-nav btn-small" onclick="adjustCommonStars(1)">+1</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="parent-section-card">
+          <h4>🏖️ Présence / Pause des tâches</h4>
+          <div id="config-presence-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
         </div>
       </div>
 
-      <div class="dashboard-grid">
-        <div class="dash-widget" onclick="openParentDomainPage('config-missions')">
-          <span class="dash-widget-icon">🎯</span>
-          <span class="dash-widget-title">Gérer les Missions</span>
+      <!-- Sous-page Gestion Enfants -->
+      <div id="parent-page-kids" class="hidden">
+        <div class="parent-subpage-header">
+          <button class="btn-nav btn-small" onclick="closeParentDomainPage()">◀ Retour</button>
+          <h4 style="margin:0;">Gestion des enfants</h4>
+          <button class="btn-primary btn-small" onclick="addKid()">+ Ajouter</button>
         </div>
-        <div class="dash-widget" onclick="openParentDomainPage('config-rewards')">
-          <span class="dash-widget-icon">🎁</span>
-          <span class="dash-widget-title">Gérer les Récompenses</span>
+        <div id="config-kids-list" class="list-tasks" style="margin-top:12px;"></div>
+      </div>
+
+      <!-- Sous-page Gestion Missions -->
+      <div id="parent-page-missions" class="hidden">
+        <div class="parent-subpage-header">
+          <button class="btn-nav btn-small" onclick="closeParentDomainPage()">◀ Retour</button>
+          <h4 style="margin:0;">Configuration des missions</h4>
+          <button class="btn-primary btn-small" onclick="addMission()">+ Nouvelle</button>
         </div>
-        <div class="dash-widget" onclick="openParentDomainPage('config-categories')">
-          <span class="dash-widget-icon">🏷️</span>
-          <span class="dash-widget-title">Catégories Budget</span>
+        <div id="config-missions-list" class="list-tasks" style="margin-top:12px;"></div>
+      </div>
+
+      <!-- Sous-page Gestion Récompenses -->
+      <div id="parent-page-rewards" class="hidden">
+        <div class="parent-subpage-header">
+          <button class="btn-nav btn-small" onclick="closeParentDomainPage()">◀ Retour</button>
+          <h4 style="margin:0;">Configuration des récompenses</h4>
+          <button class="btn-primary btn-small" onclick="addReward()">+ Nouveau</button>
         </div>
+        <div id="config-rewards-list" class="list-tasks" style="margin-top:12px;"></div>
       </div>
     </div>
 
-    <!-- SOUS-PAGE : CONFIG MISSIONS -->
-    <div id="page-config-missions" class="parent-subpage hidden">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <button class="btn-nav btn-small" onclick="closeParentDomainPage()">◀ Retour</button>
-        <h3 style="margin: 0;">Missions configurées</h3>
-        <button class="btn-primary btn-small" onclick="openCreateMissionModal()">+ Nouvelle mission</button>
-      </div>
-      <div id="parentMissionsList" style="display: flex; flex-direction: column; gap: 10px;"></div>
-    </div>
-
-    <!-- SOUS-PAGE : CONFIG RÉCOMPENSES -->
-    <div id="page-config-rewards" class="parent-subpage hidden">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <button class="btn-nav btn-small" onclick="closeParentDomainPage()">◀ Retour</button>
-        <h3 style="margin: 0;">Catalogue de récompenses</h3>
-        <button class="btn-primary btn-small" onclick="openCreateRewardModal()">+ Nouvelle récompense</button>
-      </div>
-      <div id="parentRewardsList" style="display: flex; flex-direction: column; gap: 10px;"></div>
-    </div>
-
-    <!-- SOUS-PAGE : CONFIG CATÉGORIES -->
-    <div id="page-config-categories" class="parent-subpage hidden">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <button class="btn-nav btn-small" onclick="closeParentDomainPage()">◀ Retour</button>
-        <h3 style="margin: 0;">Catégories de Dépenses</h3>
-        <button class="btn-primary btn-small" onclick="openAddCatModal()">+ Catégorie</button>
-      </div>
-      <div id="parentCategoriesList" style="display: flex; flex-direction: column; gap: 10px;"></div>
-    </div>
   </section>
 
-  <!-- ================= ONGLET 5 : DOCUMENTS ================= -->
+  <!-- ================= ONGLET 4 : DOCUMENTS ================= -->
   <section id="tab-documents" class="tab-content">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800;">Coffre-fort Documents</h3>
+    <div class="docs-toolbar">
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <input type="text" id="docSearchInput" placeholder="Rechercher un document..." oninput="renderDocuments()" style="width: 220px;">
+        <select id="docCategoryFilter" onchange="renderDocuments()">
+          <option value="all">Toutes catégories</option>
+          <option value="Factures">Factures</option>
+          <option value="Santé">Santé</option>
+          <option value="Scolaire">Scolaire</option>
+          <option value="Logement">Logement</option>
+          <option value="Identité">Identité</option>
+          <option value="Autre">Autre</option>
+        </select>
+      </div>
       <button class="btn-primary" onclick="openAddDocModal()">+ Ajouter un document</button>
     </div>
 
-    <div class="segmented-control" style="margin-bottom: 16px;">
-      <button class="seg-btn active" onclick="filterDocsByCategory('all')">Tous</button>
-      <button class="seg-btn" onclick="filterDocsByCategory('sante')">Santé</button>
-      <button class="seg-btn" onclick="filterDocsByCategory('scolaire')">Scolaire</button>
-      <button class="seg-btn" onclick="filterDocsByCategory('administratif')">Admin</button>
-      <button class="seg-btn" onclick="filterDocsByCategory('logement')">Logement</button>
+    <div class="table-container" style="margin-top: 14px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Catégorie</th>
+            <th>Date</th>
+            <th>Taille</th>
+            <th style="text-align: right; width: 130px;">Fichier</th>
+            <th style="width: 45px;"></th>
+          </tr>
+        </thead>
+        <tbody id="docsTableBody"></tbody>
+      </table>
     </div>
-
-    <div class="documents-grid" id="documentsGrid"></div>
   </section>
 
-  <!-- ================= ONGLET 6 : REPAS & MENUS ================= -->
-  <section id="tab-repas" class="tab-content">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-      <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800;">Planning des Repas</h3>
-      
-      <div class="dropdown-container">
-        <button class="btn-primary" onclick="toggleMealsDropdown(event)">Actions ▾</button>
-        <div class="dropdown-menu-right" id="meals-actions-menu">
+  <!-- ================= ONGLET 5 : MENUS & REPAS (PARFAITEMENT INTACT) ================= -->
+  <section id="tab-meals" class="tab-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 8px; background: var(--card-bg); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+        <span style="font-size: 0.88rem; font-weight: 700;">👥 Convives :</span>
+        <input type="number" id="defaultPortionsInput" min="1" max="20" value="4" style="width: 50px; padding: 4px 6px; text-align: center; font-weight: bold;" onchange="updateDefaultPortions(this.value)">
+      </div>
+
+      <div style="position: relative; margin-left: auto;">
+        <button class="btn-nav" id="btnMealsOptions" onclick="toggleMealsOptionsMenu(event)" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700;">
+          ⚙️ Options ▾
+        </button>
+        <div id="mealsDropdownMenu" class="dropdown-menu hidden" style="position: absolute; right: 0; top: 100%; margin-top: 6px; min-width: 220px; max-width: calc(100vw - 32px); z-index: 100;">
+          <button class="dropdown-item" onclick="closeMealsDropdown(); autoSuggestWeek();">🎲 Suggérer la semaine (IA)</button>
           <button class="dropdown-item" onclick="closeMealsDropdown(); openGroceryModal();">🛒 Liste de courses</button>
-          <button class="dropdown-item" onclick="closeMealsDropdown(); generateMealPlanAuto();">🎲 Générer la semaine</button>
-          <button class="dropdown-item" onclick="closeMealsDropdown(); clearMealPlanWeek();">🗑️ Vider la semaine</button>
+          <button class="dropdown-item" onclick="closeMealsDropdown(); printRecipeBook();">📖 Cahier de recettes (PDF)</button>
+          <button class="dropdown-item" onclick="closeMealsDropdown(); printFridgeMenu();">📄 Menu Frigo (PDF)</button>
           <button class="dropdown-item" onclick="closeMealsDropdown(); openRecipeEditModal();">➕ Nouvelle recette</button>
+          <hr style="border: 0; border-top: 1px solid var(--border); margin: 4px 0;">
+          <button class="dropdown-item" style="color: var(--red);" onclick="closeMealsDropdown(); clearWholeWeek();">🗑️ Vider le planning</button>
         </div>
       </div>
     </div>
 
-    <div class="meals-week-grid" id="mealsWeekGrid"></div>
+    <div class="meals-grid" id="mealsGrid"></div>
   </section>
 
 </div>
 
-<!-- ================= MODALES RECETTES & MENUS ================= -->
+<!-- ================= MODALES RECETTES & MENUS (INTACTES) ================= -->
 <div class="modal-overlay" id="recipeViewModal">
   <div class="modal" id="recipeViewModalContent" style="width: 520px; max-height: 85vh;"></div>
 </div>
@@ -337,22 +371,29 @@
 <div class="modal-overlay" id="mealPickerModal">
   <div class="modal" style="width: 500px; max-height: 85vh;">
     <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
-      <h3 id="mealPickerModalTitle" style="margin: 0;">Choisir un repas</h3>
+      <h3 id="mealPickerTitle" style="margin: 0;">Choisir un repas</h3>
       <button class="modal-close btn-nav btn-small" onclick="closeMealPickerModal()">✕</button>
     </div>
-    
-    <div style="margin: 12px 0;">
-      <input type="text" id="recipeSearchInput" placeholder="Rechercher une recette..." oninput="filterRecipesList()" style="width: 100%; box-sizing: border-box;">
-    </div>
-
-    <div class="recipes-choice-list" id="recipesChoiceList" style="max-height: 45vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;"></div>
-
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
-      <div>
-        <button type="button" class="btn-nav btn-small" onclick="clearSlotMeal()">Aucun repas</button>
+    <div class="form-vertical" style="gap: 12px; margin-top: 8px;">
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <input type="text" id="recipeSearchInput" placeholder="Rechercher une recette ou un ingrédient..." oninput="renderRecipesList()" style="flex: 1; min-width: 160px;">
+        <select id="recipeCategoryFilter" onchange="renderRecipesList()">
+          <option value="all">Toutes catégories</option>
+          <option value="Quotidien">Quotidien</option>
+          <option value="Réconfort">Réconfort</option>
+          <option value="Léger & Salade">Léger & Salade</option>
+          <option value="Pâtes & Riz">Pâtes & Riz</option>
+          <option value="Monde">Monde</option>
+          <option value="Végétarien">Végétarien</option>
+          <option value="Week-end">Week-end</option>
+        </select>
         <button type="button" class="btn-primary btn-small" onclick="openRecipeEditModal()">+ Créer</button>
       </div>
-      <div>
+
+      <div id="recipePickerList" style="display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto;"></div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+        <button type="button" class="btn-danger btn-small" onclick="clearCurrentMealSlot()">🗑️ Retirer le plat</button>
         <button type="button" class="btn-nav" onclick="closeMealPickerModal()">Fermer</button>
       </div>
     </div>
@@ -361,43 +402,53 @@
 
 <div class="modal-overlay" id="recipeEditModal">
   <div class="modal" style="width: 520px; max-height: 88vh;">
-    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
       <h3 id="recipeEditModalTitle" style="margin: 0;">Modifier la recette</h3>
       <button class="modal-close btn-nav btn-small" onclick="closeRecipeEditModal()">✕</button>
     </div>
-
     <form id="recipeEditForm" onsubmit="saveRecipe(event)" class="form-vertical" style="gap: 12px; margin-top: 8px;">
       <input type="hidden" id="editRecipeId">
       
-      <div>
-        <label>Nom de la recette</label>
-        <input type="text" id="recipeName" required placeholder="Ex: Gratin dauphinois">
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-        <div>
-          <label>Temps de préparation</label>
-          <input type="text" id="recipePrepTime" placeholder="Ex: 25 min">
+      <div style="display: flex; gap: 10px;">
+        <div style="width: 70px;">
+          <label>Icône</label>
+          <input type="text" id="recipeFormIcon" maxlength="4" style="text-align: center; font-size: 1.4rem;">
         </div>
-        <div>
-          <label>Calories approx.</label>
-          <input type="number" id="recipeCalories" placeholder="Ex: 450">
+        <div style="flex: 1;">
+          <label>Titre de la recette</label>
+          <input type="text" id="recipeFormTitle" placeholder="Ex: Risotto aux champignons" required>
         </div>
       </div>
 
       <div>
-        <label>Ingrédients (1 par ligne : Quantité | Ingrédient)</label>
-        <textarea id="recipeIngredients" rows="4" placeholder="400g | Pommes de terre&#10;20cl | Crème fraîche"></textarea>
+        <label>Catégorie</label>
+        <select id="recipeFormCategory">
+          <option value="Quotidien">Quotidien</option>
+          <option value="Réconfort">Réconfort</option>
+          <option value="Léger & Salade">Léger & Salade</option>
+          <option value="Pâtes & Riz">Pâtes & Riz</option>
+          <option value="Monde">Monde</option>
+          <option value="Végétarien">Végétarien</option>
+          <option value="Week-end">Week-end</option>
+        </select>
       </div>
 
       <div>
-        <label>Étapes de préparation</label>
-        <textarea id="recipeInstructions" rows="4" placeholder="1. Éplucher les pommes de terre..."></textarea>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label style="margin: 0;">Ingrédients (pour 4 pers.)</label>
+          <button type="button" class="btn-nav btn-small" onclick="addIngredientRow()">+ Ingrédient</button>
+        </div>
+        <div id="recipeIngredientsContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto;"></div>
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-        <button type="button" id="btnDeleteRecipe" class="btn-danger btn-small" onclick="deleteCurrentRecipe()" style="display: none;">Supprimer</button>
-        <div style="display: flex; gap: 8px; margin-left: auto;">
+      <div>
+        <label>Instructions de préparation</label>
+        <textarea id="recipeFormSteps" rows="3" placeholder="Étapes de préparation..."></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+        <button type="button" id="btnDeleteRecipe" class="btn-danger btn-small" onclick="deleteCurrentRecipe()">🗑️ Supprimer</button>
+        <div style="display: flex; gap: 8px;">
           <button type="button" class="btn-nav" onclick="closeRecipeEditModal()">Annuler</button>
           <button type="submit" class="btn-primary">Enregistrer</button>
         </div>
@@ -408,15 +459,18 @@
 
 <div class="modal-overlay" id="groceryModal">
   <div class="modal" style="width: 520px; max-height: 85vh;">
-    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
-      <h3 style="margin: 0;">🛒 Liste de courses de la semaine</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h3 style="margin: 0;">🛒 Liste de courses</h3>
+        <span id="groceryItemsCount" style="font-size: 0.8rem; color: var(--text-muted);">0 ingrédient(s)</span>
+      </div>
       <button class="modal-close btn-nav btn-small" onclick="closeGroceryModal()">✕</button>
     </div>
 
-    <div id="groceryListContent" style="max-height: 55vh; overflow-y: auto; margin: 16px 0;"></div>
+    <div id="groceryListContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; margin-top: 10px;"></div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <button type="button" class="btn-nav" onclick="exportGroceryPDF()">Télécharger en PDF</button>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px;">
+      <button type="button" class="btn-primary" onclick="copyGroceryToClipboard()">📋 Copier la liste</button>
       <button type="button" class="btn-nav" onclick="closeGroceryModal()">Fermer</button>
     </div>
   </div>
@@ -425,12 +479,12 @@
 <!-- ================= MODALE CODE PIN (CONNEXION) ================= -->
 <div id="pin-login-modal" class="modal-overlay">
   <div class="modal" style="width: 320px; text-align: center;">
-    <h3 id="pin-login-title" style="margin-top: 0;">Code PIN requis</h3>
-    <p id="pin-login-desc" style="font-size: 0.88rem; color: var(--text-muted);">Saisissez votre code PIN</p>
-    <input type="password" id="pin-input" maxlength="6" inputmode="numeric" style="font-size: 1.5rem; text-align: center; letter-spacing: 8px; margin: 16px 0; width: 160px;">
-    <div style="display: flex; justify-content: center; gap: 8px;">
+    <h3 style="font-size: 1.15rem; margin-bottom: 4px;" id="loginPinTitle">Accès sécurisé</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted);">Saisissez votre code PIN :</p>
+    <input type="password" id="login-pin-input" class="pin-input" maxlength="12" inputmode="numeric" placeholder="••••" onkeyup="if(event.key === 'Enter') submitLoginPin()">
+    <div style="display: flex; gap: 8px; justify-content: center; margin-top: 12px;">
       <button class="btn-nav" onclick="closeLoginPinModal()">Annuler</button>
-      <button class="btn-primary" onclick="submitPinLogin()">Valider</button>
+      <button class="btn-primary" onclick="submitLoginPin()">Valider</button>
     </div>
   </div>
 </div>
@@ -438,12 +492,12 @@
 <!-- ================= MODALE CODE PIN (ESPACE PARENTS) ================= -->
 <div id="parent-pin-modal" class="modal-overlay">
   <div class="modal" style="width: 320px; text-align: center;">
-    <h3 style="margin-top: 0;">Accès Espace Parents</h3>
-    <p style="font-size: 0.88rem; color: var(--text-muted);">Code PIN parent requis</p>
-    <input type="password" id="parent-pin-input" maxlength="6" inputmode="numeric" style="font-size: 1.5rem; text-align: center; letter-spacing: 8px; margin: 16px 0; width: 160px;">
-    <div style="display: flex; justify-content: center; gap: 8px;">
+    <h3 style="font-size: 1.15rem; margin-bottom: 4px;">Espace Parents</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted);">Saisissez votre code secret :</p>
+    <input type="password" id="parent-pin-input" class="pin-input" maxlength="12" inputmode="numeric" placeholder="••••" onkeyup="if(event.key === 'Enter') submitParentPin()">
+    <div style="display: flex; gap: 8px; justify-content: center; margin-top: 12px;">
       <button class="btn-nav" onclick="closeParentPinModal()">Annuler</button>
-      <button class="btn-primary" onclick="submitParentPin()">Entrer</button>
+      <button class="btn-primary" onclick="submitParentPin()">Valider</button>
     </div>
   </div>
 </div>
@@ -451,17 +505,15 @@
 <!-- ================= MODALE MODIFICATION DU CODE PIN PARENT ================= -->
 <div id="change-pin-modal" class="modal-overlay">
   <div class="modal" style="width: 340px;">
-    <h3 style="margin-top: 0;">Modifier le Code PIN Parent</h3>
+    <h3 style="font-size: 1.15rem; margin-bottom: 4px;">Modifier le code PIN</h3>
     <form id="changePinForm" onsubmit="submitChangePin(event)" class="form-vertical" style="gap: 10px; text-align: left;">
-      <div>
-        <label>Nouveau Code PIN (4 à 6 chiffres)</label>
-        <input type="password" id="newPinInput" maxlength="6" inputmode="numeric" required style="letter-spacing: 4px;">
-      </div>
-      <div>
-        <label>Confirmer le Code PIN</label>
-        <input type="password" id="confirmPinInput" maxlength="6" inputmode="numeric" required style="letter-spacing: 4px;">
-      </div>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+      <label style="font-size: 0.8rem;">Code PIN actuel :</label>
+      <input type="password" id="changePinOld" class="pin-input" style="font-size: 1.2rem; letter-spacing: 0.2em;" maxlength="12" placeholder="••••" required>
+      <label style="font-size: 0.8rem;">Nouveau code PIN :</label>
+      <input type="password" id="changePinNew" class="pin-input" style="font-size: 1.2rem; letter-spacing: 0.2em;" maxlength="12" placeholder="••••" required>
+      <label style="font-size: 0.8rem;">Confirmer le code PIN :</label>
+      <input type="password" id="changePinConfirm" class="pin-input" style="font-size: 1.2rem; letter-spacing: 0.2em;" maxlength="12" placeholder="••••" required>
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
         <button type="button" class="btn-nav" onclick="closeChangePinModal()">Annuler</button>
         <button type="submit" class="btn-primary">Enregistrer</button>
       </div>
@@ -474,28 +526,25 @@
   <div class="modal" style="width: 360px;">
     <h3 id="profileEditModalTitle" style="font-size: 1.15rem; margin-bottom: 8px;">Modifier le profil</h3>
     <form id="profileEditForm" class="form-vertical" onsubmit="saveProfileEdit(event)">
-      <input type="hidden" id="editProfileId">
+      <input type="hidden" id="editUserId">
       
-      <div>
-        <label>Nom ou Prénom</label>
-        <input type="text" id="editProfileName" required>
-      </div>
+      <label>Nom</label>
+      <input type="text" id="editUserName" required placeholder="Prénom">
+      
+      <label>Avatar (Emoji)</label>
+      <input type="text" id="editUserAvatar" maxlength="4" style="text-align: center; font-size: 1.3rem;" value="🧑">
+      
+      <label>Rôle</label>
+      <select id="editUserRole">
+        <option value="parent">Parent (accès complet)</option>
+        <option value="child">Enfant</option>
+      </select>
 
-      <div style="display: flex; gap: 10px;">
-        <div style="flex: 1;">
-          <label>Avatar (Emoji)</label>
-          <input type="text" id="editProfileAvatar" maxlength="2" required style="text-align: center; font-size: 1.2rem;">
-        </div>
-        <div style="flex: 2;">
-          <label>Rôle</label>
-          <select id="editProfileRole">
-            <option value="parent">Parent</option>
-            <option value="child">Enfant</option>
-          </select>
-        </div>
-      </div>
+      <label>Code PIN de sécurité</label>
+      <input type="password" id="editUserPin" maxlength="12" placeholder="Laisser vide pour désactiver">
+      <small style="font-size: 0.75rem; color: var(--text-muted); margin-top: -6px;">Laissez vide ou '••••••••' pour ne pas modifier.</small>
 
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
         <button type="button" class="btn-nav" onclick="closeProfileEditModal()">Annuler</button>
         <button type="submit" class="btn-primary">Enregistrer</button>
       </div>
@@ -506,37 +555,42 @@
 <!-- ================= MODALE PARAMÈTRES GÉNÉRAUX ================= -->
 <div id="generalSettingsModal" class="modal-overlay">
   <div class="modal" style="width: 480px; max-height: 85vh;">
-    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
-      <h3 style="margin: 0;">Paramètres généraux</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0;">⚙️ Paramètres de l'application</h3>
       <button class="modal-close btn-nav btn-small" onclick="closeGeneralSettingsModal()">✕</button>
     </div>
 
-    <div style="margin: 16px 0; max-height: 60vh; overflow-y: auto;">
-      <h4 style="margin: 0 0 10px 0;">Gestion des Profils</h4>
-      <div id="settingsProfilesList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;"></div>
-
-      <h4 style="margin: 16px 0 10px 0;">Synchronisation Cloud (Upstash)</h4>
-      <div class="form-vertical" style="gap: 8px;">
-        <div>
-          <label style="font-size: 0.8rem;">URL Upstash REST</label>
-          <input type="text" id="upstashUrlInput" placeholder="https://...upstash.io">
-        </div>
-        <div>
-          <label style="font-size: 0.8rem;">Token Upstash (ReadOnly ou Full)</label>
-          <input type="password" id="upstashTokenInput" placeholder="Token API">
-        </div>
-        <div style="display: flex; gap: 8px; margin-top: 6px;">
-          <button type="button" class="btn-nav btn-small" onclick="saveUpstashSettings()">Enregistrer les clés</button>
-          <button type="button" class="btn-nav btn-small" onclick="testUpstashConnection()">Tester la connexion</button>
-        </div>
-      </div>
-    </div>
-
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+    <div class="form-vertical" style="gap: 14px; margin-top: 10px;">
       <div>
-        <button type="button" class="btn-primary btn-small" onclick="openProfileEditModal()">+ Nouveau profil</button>
+        <label>Thème visuel</label>
+        <select id="themeSelect" onchange="updateGeneralSettings()">
+          <option value="dark">🌙 Sombre</option>
+          <option value="light">☀️ Clair</option>
+        </select>
       </div>
+
       <div>
+        <label>Couleur principale</label>
+        <select id="primaryColorSelect" onchange="updateGeneralSettings()">
+          <option value="#38bdf8">Bleu Ciel</option>
+          <option value="#4f46e5">Indigo</option>
+          <option value="#22c55e">Vert Émeraude</option>
+          <option value="#a855f7">Violet</option>
+          <option value="#f43f5e">Rose / Rouge</option>
+          <option value="#eab308">Ambre</option>
+        </select>
+      </div>
+
+      <div style="border-top: 1px solid var(--border); padding-top: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h4 style="margin: 0; font-size: 0.95rem;">Gestion des profils</h4>
+          <button type="button" class="btn-primary btn-small" onclick="openProfileEditModal()">+ Nouveau profil</button>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: -6px;">Gérez les noms, codes PIN et rôles.</p>
+        <div id="appUsersList" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;"></div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
         <button type="button" class="btn-nav" onclick="closeGeneralSettingsModal()">Fermer</button>
       </div>
     </div>
@@ -547,25 +601,27 @@
 <div class="modal-overlay" id="dashboardCustomModal" style="display: none;">
   <div class="modal modal-custom-dash">
     <div class="modal-header-clean">
-      <div class="modal-title-wrap">
-        <span class="modal-subtitle">Affichage</span>
-        <h3>Personnaliser l'accueil</h3>
+      <div>
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;">🎨 Personnaliser l'accueil</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 3px 0 0 0;">
+          Active ou masque les tuiles du tableau de bord
+        </p>
       </div>
       <button type="button" class="modal-close-btn" onclick="closeDashboardCustomModal()" aria-label="Fermer">✕</button>
     </div>
-    
-    <div class="custom-dash-body">
-      <p class="custom-dash-hint">Activez ou masquez les tuiles pour chaque profil.</p>
-      <div class="custom-dash-list" id="dashboardCustomList"></div>
-    </div>
+
+    <!-- C'est ici que le JavaScript va injecter les switchs -->
+    <div id="dashCustomCards" class="dash-custom-list"></div>
 
     <div class="modal-footer-clean">
       <button type="button" class="btn-primary" style="width: 100%; justify-content: center;" onclick="closeDashboardCustomModal()">
-        Terminer
+        Terminé
       </button>
     </div>
   </div>
 </div>
+
+
 
 <!-- ================= MODALE OPÉRATIONS RÉCURRENTES ================= -->
 <div class="modal-overlay" id="recurringModal" style="display: none;">
@@ -574,17 +630,14 @@
       <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;">Opérations récurrentes</h3>
       <button type="button" class="btn-nav btn-small" onclick="closeRecurringModal()">✕</button>
     </div>
-
-    <!-- Liste dynamique gérée par budget.js -->
     <div id="recurringList" style="overflow-y: auto; max-height: 55vh; margin-bottom: 14px;"></div>
-
     <div style="display: flex; justify-content: flex-end; margin-top: auto;">
       <button type="button" class="btn-nav" onclick="closeRecurringModal()">Fermer</button>
     </div>
   </div>
 </div>
 
-<!-- ================= MODALE NOUVELLE / MODIFIER OPÉRATION ================= -->
+  <!-- ================= MODALE NOUVELLE / MODIFIER OPÉRATION ================= -->
 <div class="modal-overlay" id="txModal" style="display: none;">
   <div class="modal" style="width: 380px;">
     <h3 id="txModalTitle" style="margin: 0 0 12px 0;">Nouvelle Opération</h3>
@@ -648,25 +701,25 @@
 
       <div>
         <label>Nom du compte</label>
-        <input type="text" id="accFormName" placeholder="Ex: Compte Courant, Livret A..." required>
+        <input type="text" id="accFormName" placeholder="Ex: Compte Courant" required>
       </div>
 
       <div>
-        <label>Icône / Emoji</label>
-        <input type="text" id="accFormIcon" placeholder="💳" maxlength="2">
+        <label>Émoji / Icône</label>
+        <input type="text" id="accFormIcon" maxlength="4" style="text-align: center; font-size: 1.3rem;" value="💳">
       </div>
 
       <div>
-        <label>Solde Initial (€)</label>
-        <input type="number" step="0.01" id="accFormBalance" placeholder="0.00">
+        <label>Solde de départ (€)</label>
+        <input type="number" step="0.01" id="accFormBalance" value="0.00" required>
       </div>
 
       <div>
-        <label>Visibilité / Partage</label>
+        <label>Visibilité</label>
         <select id="accFormSharing">
-          <option value="parents">Partagé (Parents uniquement)</option>
-          <option value="family">Visible par toute la famille</option>
-          <option value="private">Privé (Moi uniquement)</option>
+          <option value="parents">Parents uniquement</option>
+          <option value="all">Toute la famille</option>
+          <option value="private">Privé (moi uniquement)</option>
         </select>
       </div>
 
@@ -681,7 +734,7 @@
   </div>
 </div>
 
-<!-- ================= SCRIPTS (CHARGÉS APRÈS TOUTES LES MODALES DU DOM) ================= -->
+<!-- ================= SCRIPTS ================= -->
 <script src="js/sync.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/budget.js"></script>
