@@ -44,14 +44,34 @@ let state = JSON.parse(localStorage.getItem("family_rewards_app")) || JSON.parse
 
 if (!state || !state.kids || state.kids.length === 0) {
   state = defaultData;
-  localStorage.setItem("family_rewards_app", JSON.stringify(state));
-  localStorage.setItem("family_missions_state", JSON.stringify(state));
+  // Ne pas écraser Upstash tant que la synchronisation initiale n'a pas répondu
+  if (typeof originalSetItem === "function") {
+    originalSetItem("family_rewards_app", JSON.stringify(state));
+    originalSetItem("family_missions_state", JSON.stringify(state));
+  } else {
+    localStorage.setItem("family_rewards_app", JSON.stringify(state));
+    localStorage.setItem("family_missions_state", JSON.stringify(state));
+  }
 }
 
 window.kidsState = state;
 window.activeKidId = (state.kids && state.kids.length > 0) ? state.kids[0].id : null;
 window.isParentMode = false;
 window.parentCurrentSubpage = 'main';
+
+// Fonction appelée par sync.js dès que les données du serveur arrivent
+window.setKidsState = function(remoteState) {
+  if (remoteState && remoteState.kids && remoteState.kids.length > 0) {
+    state = remoteState;
+    window.kidsState = state;
+    if (typeof originalSetItem === "function") {
+      originalSetItem("family_rewards_app", JSON.stringify(state));
+      originalSetItem("family_missions_state", JSON.stringify(state));
+    }
+    renderKids();
+    if (typeof renderDashboard === "function") renderDashboard();
+  }
+};
 
 function getAge(birthDateStr) {
   if (!birthDateStr) return 0;
