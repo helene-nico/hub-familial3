@@ -854,7 +854,7 @@ window.copyGroceryToClipboard = function() {
   navigator.clipboard.writeText(textToCopy.trim()).then(() => alert("Liste de courses copiée dans le presse-papier !"));
 };
 
-// --- MENU FRIGO : PRÉSENTATION CALENDRIER A4 SUR UNE SEULE PAGE ---
+// --- MENU FRIGO : SEMAISIER A4 PAYSAGE ÉQUILIBRÉ ---
 window.printFridgeMenu = async function() {
   const allRecipes = getAllRecipes();
   let hasMeals = false;
@@ -881,107 +881,117 @@ window.printFridgeMenu = async function() {
         <title>Génération du Menu Frigo...</title>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; color: #333; margin: 0; background: #f8fafc; }
-          .loader { font-size: 2.8rem; margin-bottom: 16px; animation: spin 2s linear infinite; }
-          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          .loader { font-size: 2.5rem; margin-bottom: 12px; }
         </style>
       </head>
       <body>
         <div class="loader">⏳</div>
-        <h2 style="margin: 0 0 8px 0; color: #1e293b;">Création de votre Menu Frigo...</h2>
-        <p style="color: #64748b; margin: 0;">Mise en page du semainier en cours.</p>
+        <h2 style="margin: 0 0 6px 0; color: #1e293b;">Création du semainier paysage...</h2>
+        <p style="color: #64748b; margin: 0;">Veuillez patienter.</p>
       </body>
       </html>
     `);
   }
 
-  function renderSlotCell(slot) {
+  function renderMealBlock(slot, isMidi) {
+    const label = isMidi ? '☀️ Déjeuner' : '🌙 Dîner';
+    const tagColor = isMidi ? '#d97706' : '#4f46e5';
+
     if (!slot) {
-      return `<div style="color: #cbd5e1; font-size: 0.85rem; text-align: center; font-style: italic;">—</div>`;
+      return `
+        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 8px; height: 60px; display: flex; align-items: center; justify-content: center;">
+          <span style="font-size: 0.75rem; color: #94a3b8; font-style: italic;">—</span>
+        </div>
+      `;
     }
+
     const meal = weeklyPlan[slot.id];
     const recipe = meal && meal.recipeId ? allRecipes.find(r => r.id === meal.recipeId) : null;
     const title = meal ? (meal.customTitle || (recipe ? recipe.title : '')) : '';
 
     if (!title.trim()) {
-      return `<div style="color: #94a3b8; font-size: 0.82rem; text-align: center; font-style: italic;">Non planifié</div>`;
+      return `
+        <div style="background: #f8fafc; border: 1px dashed #e2e8f0; border-radius: 8px; padding: 8px; height: 60px; display: flex; flex-direction: column; justify-content: space-between;">
+          <span style="font-size: 0.68rem; font-weight: 800; text-transform: uppercase; color: ${tagColor};">${label}</span>
+          <span style="font-size: 0.78rem; color: #cbd5e1; font-style: italic; text-align: center;">Non planifié</span>
+          <span></span>
+        </div>
+      `;
     }
 
     const icon = recipe ? (recipe.icon || '🍽️') : '🍽️';
     const portions = meal.portions || defaultPortions;
-    const category = recipe ? recipe.category : '';
 
     return `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 1.7rem; line-height: 1; flex-shrink: 0;">${icon}</span>
-        <div style="flex: 1; min-width: 0;">
-          <div style="font-weight: 700; font-size: 0.92rem; color: #0f172a; line-height: 1.2;">${title}</div>
-          <div style="display: flex; gap: 6px; align-items: center; margin-top: 2px;">
-            ${category ? `<span style="background: #e0f2fe; color: #0369a1; font-size: 0.65rem; font-weight: 700; padding: 1px 5px; border-radius: 4px;">${category}</span>` : ''}
-            <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">👥 ${portions} pers.</span>
-          </div>
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; height: 60px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.68rem; font-weight: 800; text-transform: uppercase; color: ${tagColor};">${label}</span>
+          <span style="font-size: 0.68rem; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 1px 5px; border-radius: 4px;">👥 ${portions}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.3rem; line-height: 1; flex-shrink: 0;">${icon}</span>
+          <span style="font-weight: 700; font-size: 0.85rem; color: #0f172a; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${title}</span>
         </div>
       </div>
     `;
   }
 
-  let rowsHtml = '';
-  MEAL_DAYS.forEach(day => {
+  // Grille de 8 jours (4 colonnes x 2 rangées)
+  const cardsHtml = MEAL_DAYS.map(day => {
     const isWeekend = (day.id === 'sat' || day.id === 'sun');
     const midSlot = day.slots.find(s => s.id.includes('mid'));
     const eveSlot = day.slots.find(s => s.id.includes('eve'));
 
-    let badgeText = isWeekend ? 'Week-end' : '';
-    if (day.id === 'fri_start') badgeText = 'Départ';
-    if (day.id === 'fri_end') badgeText = 'Fin';
+    let badge = '';
+    if (isWeekend) badge = 'Week-end';
+    else if (day.id === 'fri_start') badge = 'Départ';
+    else if (day.id === 'fri_end') badge = 'Fin de cycle';
 
-    rowsHtml += `
-      <tr>
-        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; background: ${isWeekend ? '#fffbeb' : '#f8fafc'}; border-left: 4px solid ${isWeekend ? '#f59e0b' : '#38bdf8'}; width: 18%;">
-          <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">${day.name}</div>
-          ${badgeText ? `<div style="font-size: 0.68rem; font-weight: 700; color: ${isWeekend ? '#b45309' : '#0284c7'}; text-transform: uppercase;">${badgeText}</div>` : ''}
-        </td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; width: 41%; background: ${isWeekend ? '#fffdf7' : '#ffffff'};">
-          ${renderSlotCell(midSlot)}
-        </td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; width: 41%; border-left: 1px solid #f1f5f9; background: ${isWeekend ? '#fffdf7' : '#ffffff'};">
-          ${renderSlotCell(eveSlot)}
-        </td>
-      </tr>
+    const headerBg = isWeekend ? '#fef3c7' : '#e0f2fe';
+    const headerColor = isWeekend ? '#b45309' : '#0369a1';
+    const borderColor = isWeekend ? '#fde68a' : '#bae6fd';
+
+    return `
+      <div style="background: #ffffff; border: 1.5px solid ${borderColor}; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; height: 185px;">
+        <div style="background: ${headerBg}; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid ${borderColor};">
+          <span style="font-weight: 900; font-size: 0.95rem; text-transform: uppercase; color: ${headerColor}; letter-spacing: 0.03em;">${day.name}</span>
+          ${badge ? `<span style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: ${headerColor}; opacity: 0.85;">${badge}</span>` : ''}
+        </div>
+        <div style="padding: 8px; display: flex; flex-direction: column; gap: 6px; flex: 1; justify-content: center;">
+          ${renderMealBlock(midSlot, true)}
+          ${renderMealBlock(eveSlot, false)}
+        </div>
+      </div>
     `;
-  });
+  }).join('');
 
   const container = document.createElement('div');
-  container.style.padding = '16px 20px';
+  container.style.width = '297mm';
+  container.style.height = '210mm';
+  container.style.padding = '12mm 15mm';
   container.style.color = '#0f172a';
   container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  container.style.background = '#f8fafc';
+  container.style.boxSizing = 'border-box';
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.justifyContent = 'space-between';
 
   container.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0284c7; padding-bottom: 10px; margin-bottom: 14px;">
-      <div>
-        <h1 style="font-size: 1.6rem; margin: 0; color: #0284c7; font-weight: 900; letter-spacing: -0.02em;">📋 MENU DE LA SEMAINE</h1>
-        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.85rem; font-weight: 500;">Planning familial du vendredi soir au vendredi midi suivant</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 1.8rem;">🍽️</span>
+        <h1 style="font-size: 1.5rem; margin: 0; color: #0f172a; font-weight: 900; letter-spacing: -0.02em;">Menu de la Semaine</h1>
       </div>
-      <div style="text-align: right;">
-        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">Hub Familial</span>
-      </div>
+      <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Hub Familial • Planning du vendredi au vendredi</span>
     </div>
 
-    <table style="width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-      <thead>
-        <tr style="background: #0f172a; color: #ffffff;">
-          <th style="padding: 9px 10px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; text-align: left;">Jour</th>
-          <th style="padding: 9px 12px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; text-align: left;">☀️ Déjeuner (Midi)</th>
-          <th style="padding: 9px 12px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; text-align: left; border-left: 1px solid #334155;">🌙 Dîner (Soir)</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rowsHtml}
-      </tbody>
-    </table>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0;">
+      ${cardsHtml}
+    </div>
 
-    <div style="margin-top: 14px; display: flex; justify-content: space-between; font-size: 0.75rem; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
-      <span>📌 Pensez à vérifier les ingrédients nécessaires dans la liste de courses.</span>
-      <span>Bon appétit ! 🍽️</span>
+    <div style="text-align: center; font-size: 0.75rem; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+      Bon appétit ! 🥗 Pensez à vérifier la liste de courses avant de partir.
     </div>
   `;
 
@@ -995,30 +1005,27 @@ window.printFridgeMenu = async function() {
     });
   }
 
-  if (typeof html2pdf !== 'undefined') {
-    const opt = {
-      margin: 8,
-      filename: 'Menu_Frigo_Semaine.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+  const opt = {
+    margin: 0,
+    filename: 'Menu_Frigo_Semaine.pdf',
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#f8fafc' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  };
 
-    html2pdf().set(opt).from(container).toPdf().get('pdf').then(function(pdf) {
-      const blob = pdf.output('blob');
-      const blobUrl = URL.createObjectURL(blob);
-      if (pdfTab) {
-        pdfTab.location.href = blobUrl;
-      } else {
-        window.open(blobUrl, '_blank');
-      }
-    }).catch(err => {
-      console.error(err);
-      if (pdfTab) pdfTab.document.body.innerHTML = container.innerHTML;
-    });
-  } else {
-    if (pdfTab) pdfTab.document.body.innerHTML = container.innerHTML;
-  }
+  html2pdf().set(opt).from(container).toPdf().get('pdf').then(function(pdf) {
+    const blob = pdf.output('blob');
+    const blobUrl = URL.createObjectURL(blob);
+    if (pdfTab) {
+      pdfTab.location.href = blobUrl;
+    } else {
+      window.open(blobUrl, '_blank');
+    }
+  }).catch(err => {
+    console.error(err);
+    if (pdfTab) pdfTab.close();
+    alert("Erreur lors de la génération du PDF.");
+  });
 };
 
 // --- CAHIER DE RECETTES : OUVERTURE EN VRAI PDF (SANS BOÎTE D'IMPRESSION) ---
