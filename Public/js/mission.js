@@ -1,4 +1,4 @@
-const APP_VERSION = 15;
+const APP_VERSION = 16;
 
 const defaultData = {
   version: APP_VERSION,
@@ -26,8 +26,8 @@ const defaultData = {
     { id: 205, kidId: 0, title: "Préparer son cartable le soir", icon: "🎒", points: 1, minAge: 6, maxAge: null },
     { id: 206, kidId: 0, title: "Devoirs du soir", icon: "📚", points: 2, minAge: 6, maxAge: null },
 
-    { id: 401, kidId: 0, isRotating: true, title: "Mettre la table", icon: "🍽️", points: 1, minAge: 5, maxAge: null }, 
-    { id: 402, kidId: 0, isRotating: true, title: "Débarrasser la table", icon: "🥣", points: 1, minAge: 6, maxAge: null } 
+    { id: 401, kidId: 0, isRotating: true, currentKidId: 1, title: "Mettre la table", icon: "🍽️", points: 1, minAge: 5, maxAge: null }, 
+    { id: 402, kidId: 0, isRotating: true, currentKidId: 2, title: "Débarrasser la table", icon: "🥣", points: 1, minAge: 6, maxAge: null } 
   ],
   rewards: [
     { id: 1, isCommon: false, title: "Histoire supplémentaire", icon: "🌙", cost: 3 },
@@ -52,7 +52,6 @@ window.kidsState = state;
 window.activeKidId = (state.kids && state.kids.length > 0) ? state.kids[0].id : null;
 window.isParentMode = false;
 window.parentCurrentSubpage = 'main';
-const todayDay = Math.floor(Date.now() / 86400000);
 
 function getAge(birthDateStr) {
   if (!birthDateStr) return 0;
@@ -63,6 +62,43 @@ function getAge(birthDateStr) {
   if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
   return age;
 }
+
+// --- LOGIQUE DE GESTION DU TOUR DE RÔLE (ROTATION) ---
+function getEligibleKidsForMission(mission) {
+  return (state.kids || []).filter(k => {
+    if (k.present === false) return false;
+    const kAge = getAge(k.birthDate);
+    if (mission.minAge && kAge < mission.minAge) return false;
+    if (mission.maxAge && kAge > mission.maxAge) return false;
+    return true;
+  });
+}
+
+function getMissionTurnKid(mission) {
+  const eligible = getEligibleKidsForMission(mission);
+  if (eligible.length === 0) return null;
+  let kid = eligible.find(k => String(k.id) === String(mission.currentKidId));
+  if (!kid) {
+    kid = eligible[0];
+    mission.currentKidId = kid.id;
+  }
+  return kid;
+}
+
+function advanceMissionTurn(missionId) {
+  const mission = (state.missions || []).find(m => String(m.id) === String(missionId));
+  if (!mission) return;
+  const eligible = getEligibleKidsForMission(mission);
+  if (eligible.length <= 1) return;
+  const currentIndex = eligible.findIndex(k => String(k.id) === String(mission.currentKidId));
+  const nextIndex = (currentIndex === -1 ? 0 : currentIndex + 1) % eligible.length;
+  mission.currentKidId = eligible[nextIndex].id;
+}
+
+window.passMissionTurn = function(missionId) {
+  advanceMissionTurn(missionId);
+  saveState();
+};
 
 function saveState() {
   localStorage.setItem("family_rewards_app", JSON.stringify(state));
@@ -107,6 +143,12 @@ window.submitMission = function(missionId) {
     title: mission.title,
     points: mission.points
   });
+
+  // Dès qu'une tâche tournante est validée par l'enfant, le tour passe immédiatement au suivant
+  if (mission.isRotating) {
+    advanceMissionTurn(mission.id);
+  }
+
   alert(`Super ${kid.name} ! Mission envoyée pour validation aux parents.`);
   saveState();
 };
@@ -176,7 +218,6 @@ window.submitParentPin = function() {
   const entered = input ? input.value.trim() : '';
   const currentPin = state.pin || "0000";
 
-  // Accepte le code de l'état, ou les codes d'usine usuels (0000 ou 1234)
   if (entered === currentPin || entered === "0000" || entered === "1234") {
     window.closeParentPinModal();
     window.isParentMode = true;
@@ -339,7 +380,8 @@ window.addMission = function() {
     points: points,
     minAge: null,
     maxAge: null,
-    isRotating: isRotating
+    isRotating: isRotating,
+    currentKidId: null
   });
   saveState();
 };
@@ -474,40 +516,63 @@ function renderKids() {
         if (m.minAge && kidAge < m.minAge) return false;
         if (m.maxAge && kidAge > m.maxAge) return false;
         if (m.kidId !== 0 && String(m.kidId) !== String(window.activeKidId)) return false;
-
-        if (m.isRotating) {
-          let eligibleKids = state.kids.filter(k => {
-            if (k.present === false) return false;
-            let kAge = getAge(k.birthDate);
-            if (m.minAge && kAge < m.minAge) return false;
-            if (m.maxAge && kAge > m.maxAge) return false;
-            return true;
-          });
-          if (eligibleKids.length === 0) return false;
-          eligibleKids.sort((a,b) => String(a.id).localeCompare(String(b.id)));
-          const turnIndex = (todayDay + m.id) % eligibleKids.length;
-          return String(eligibleKids[turnIndex].id) === String(window.activeKidId);
-        }
         return true;
       });
 
       const missionsContainer = document.getElementById("tab-missions-sub");
       if (missionsContainer) {
-        missionsContainer.innerHTML = kidMissions.map(m => `
-          <div class="task-item">
-            <div class="task-info">
-              <span style="font-size: 1.6rem;">${m.icon}</span>
-              <div>
-                <div class="task-title">
-                  ${m.title} 
-                  ${m.isRotating ? '<span class="badge badge-cat" style="margin-left:4px;">🔄 À ton tour</span>' : ''}
+        missionsContainer.innerHTML = kidMissions.map(m => {
+          if (m.isRotating) {
+            const currentKid = getMissionTurnKid(m);
+            const isMyTurn = currentKid && String(currentKid.id) === String(window.activeKidId);
+
+            if (isMyTurn) {
+              return `
+                <div class="task-item">
+                  <div class="task-info">
+                    <span style="font-size: 1.6rem;">${m.icon}</span>
+                    <div>
+                      <div class="task-title">
+                        ${m.title} 
+                        <span class="badge badge-cat" style="margin-left:4px;">🔄 À ton tour !</span>
+                      </div>
+                      <div class="task-reward">+${m.points} ⭐</div>
+                    </div>
+                  </div>
+                  <button class="btn-primary btn-small" onclick="submitMission(${m.id})">Fait !</button>
                 </div>
-                <div class="task-reward">+${m.points} ⭐</div>
+              `;
+            } else {
+              return `
+                <div class="task-item" style="opacity: 0.65;">
+                  <div class="task-info">
+                    <span style="font-size: 1.6rem;">${m.icon}</span>
+                    <div>
+                      <div class="task-title">${m.title}</div>
+                      <div style="font-size: 0.8rem; color: var(--text-muted);">
+                        ⏳ Au tour de <b>${currentKid ? currentKid.name : '...'}</b>
+                      </div>
+                    </div>
+                  </div>
+                  <span class="badge" style="background: var(--surface); color: var(--text-muted); font-size: 0.78rem;">Pas ton tour</span>
+                </div>
+              `;
+            }
+          }
+
+          return `
+            <div class="task-item">
+              <div class="task-info">
+                <span style="font-size: 1.6rem;">${m.icon}</span>
+                <div>
+                  <div class="task-title">${m.title}</div>
+                  <div class="task-reward">+${m.points} ⭐</div>
+                </div>
               </div>
+              <button class="btn-primary btn-small" onclick="submitMission(${m.id})">Fait !</button>
             </div>
-            <button class="btn-primary btn-small" onclick="submitMission(${m.id})">Fait !</button>
-          </div>
-        `).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucune tâche pour aujourd'hui.</p>`;
+          `;
+        }).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucune tâche pour aujourd'hui.</p>`;
       }
 
       const individualRewards = state.rewards.filter(r => !r.isCommon);
@@ -616,15 +681,31 @@ function renderKids() {
 
     const configMissionsContainer = document.getElementById("config-missions-list");
     if (configMissionsContainer) {
-      configMissionsContainer.innerHTML = state.missions.map(m => `
-        <div class="task-item">
-          <span>${m.icon} <b>${m.title}</b> (${m.points} ⭐) ${m.isRotating ? '🔄 (Tourne)' : ''}</span>
-          <div style="display:flex; gap:6px;">
-            <button class="btn-nav btn-small" onclick="editMission(${m.id})">✏️</button>
-            <button class="btn-danger btn-small" onclick="removeMission(${m.id})">✕</button>
+      configMissionsContainer.innerHTML = state.missions.map(m => {
+        let rotatingInfo = '';
+        if (m.isRotating) {
+          const currentKid = getMissionTurnKid(m);
+          const kidName = currentKid ? currentKid.name : 'Aucun';
+          rotatingInfo = `
+            <div style="font-size:0.82rem; color:var(--primary); margin-top:4px;">
+              🔄 Tour actuel : <b>${kidName}</b>
+              <button class="btn-nav btn-small" style="margin-left:8px; padding:2px 8px; font-size:0.75rem;" onclick="passMissionTurn(${m.id})" title="Passer au prochain enfant">⏭️ Tour suivant</button>
+            </div>
+          `;
+        }
+        return `
+          <div class="task-item" style="flex-direction:column; align-items:flex-start; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span>${m.icon} <b>${m.title}</b> (${m.points} ⭐) ${m.isRotating ? '<span class="badge badge-cat">🔄 Tourne</span>' : ''}</span>
+              <div style="display:flex; gap:6px;">
+                <button class="btn-nav btn-small" onclick="editMission(${m.id})">✏️</button>
+                <button class="btn-danger btn-small" onclick="removeMission(${m.id})">✕</button>
+              </div>
+            </div>
+            ${rotatingInfo}
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     }
 
     const configRewardsContainer = document.getElementById("config-rewards-list");
