@@ -1202,3 +1202,42 @@ td:nth-child(3) {
   font-weight: 800;
   margin-top: 8px;
 }
+
+/* Petit carré pour le nombre de convives par repas */
+.meal-slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.meal-portions-input {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  padding: 0 !important;
+  text-align: center !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  border-radius: 6px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  line-height: 26px !important;
+  box-sizing: border-box !important;
+  -moz-appearance: textfield;
+}
+
+/* Masque les flèches du navigateur pour conserver un vrai format carré */
+.meal-portions-input::-webkit-outer-spin-button,
+.meal-portions-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.meal-portions-input:focus {
+  border-color: var(--primary) !important;
+  outline: none;
+}
