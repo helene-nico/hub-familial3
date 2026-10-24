@@ -623,20 +623,6 @@
 
 
 
-<!-- ================= MODALE OPÉRATIONS RÉCURRENTES ================= -->
-<div class="modal-overlay" id="recurringModal" style="display: none;">
-  <div class="modal" style="width: 440px; max-height: 85vh; display: flex; flex-direction: column;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-      <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;">Opérations récurrentes</h3>
-      <button type="button" class="btn-nav btn-small" onclick="closeRecurringModal()">✕</button>
-    </div>
-    <div id="recurringList" style="overflow-y: auto; max-height: 55vh; margin-bottom: 14px;"></div>
-    <div style="display: flex; justify-content: flex-end; margin-top: auto;">
-      <button type="button" class="btn-nav" onclick="closeRecurringModal()">Fermer</button>
-    </div>
-  </div>
-</div>
-
   <!-- ================= MODALE NOUVELLE / MODIFIER OPÉRATION ================= -->
 <div class="modal-overlay" id="txModal" style="display: none;">
   <div class="modal" style="width: 380px;">
@@ -675,17 +661,17 @@
       </div>
 
       <div id="txRecurringGroup" style="margin-top: 6px;">
-  <label for="txRecurring" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; user-select: none;">
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <span style="font-size: 1.15rem; line-height: 1;">🔄</span>
-      <div>
-        <div style="font-weight: 700; font-size: 0.88rem; color: var(--text);">Répéter tous les mois</div>
-        <div style="font-size: 0.75rem; color: var(--text-muted);">Opération récurrente mensuelle</div>
+        <label for="txRecurring" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; user-select: none;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.15rem; line-height: 1;">🔄</span>
+            <div>
+              <div style="font-weight: 700; font-size: 0.88rem; color: var(--text);">Répéter tous les mois</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Opération récurrente mensuelle</div>
+            </div>
+          </div>
+          <input type="checkbox" id="txRecurring" style="width: 20px; height: 20px; min-width: 20px; accent-color: var(--primary); cursor: pointer; margin: 0; flex-shrink: 0;">
+        </label>
       </div>
-    </div>
-    <input type="checkbox" id="txRecurring" style="width: 20px; height: 20px; min-width: 20px; accent-color: var(--primary); cursor: pointer; margin: 0; flex-shrink: 0;">
-  </label>
-</div>
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
         <button type="button" id="btnDeleteTxModal" class="btn-danger btn-small" onclick="deleteCurrentModalTx()" style="display: none;">Supprimer</button>
@@ -739,8 +725,21 @@
     </form>
   </div>
 </div>
+<!-- ================= MODALE OPÉRATIONS RÉCURRENTES ================= -->
+<div class="modal-overlay" id="recurringModal" style="display: none;">
+  <div class="modal" style="width: 440px; max-height: 85vh; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;">Opérations récurrentes</h3>
+      <button type="button" class="btn-nav btn-small" onclick="closeRecurringModal()">✕</button>
+    </div>
+    <div id="recurringList" style="overflow-y: auto; max-height: 55vh; margin-bottom: 14px;"></div>
+    <div style="display: flex; justify-content: flex-end; margin-top: auto;">
+      <button type="button" class="btn-nav" onclick="closeRecurringModal()">Fermer</button>
+    </div>
+  </div>
+</div>
 
-  <!-- ================= MODALE GESTION MISSION (FORMULAIRE UNIQUE) ================= -->
+<!-- ================= MODALE GESTION MISSION (FORMULAIRE UNIQUE) ================= -->
 <div class="modal-overlay" id="missionModal" style="display: none;">
   <div class="modal" style="width: 420px; max-height: 88vh;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -799,6 +798,15 @@
         <input type="checkbox" id="missionFormRotating" style="width: 20px; height: 20px; accent-color: var(--primary); margin: 0;">
       </label>
 
+      <!-- Ordre quotidien (ex: Douche) -->
+      <label style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; margin-top: 4px;">
+        <div>
+          <div style="font-size: 0.88rem; font-weight: 700;">🔢 Ordre de passage</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">Donne un ordre (1er, 2ème) différent chaque jour (ex: Douche)</div>
+        </div>
+        <input type="checkbox" id="missionFormDailyOrder" style="width: 20px; height: 20px; accent-color: var(--primary); margin: 0;">
+      </label>
+
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
         <button type="button" class="btn-nav" onclick="closeMissionModal()">Annuler</button>
         <button type="submit" class="btn-primary">Enregistrer</button>
@@ -849,7 +857,8 @@
     </form>
   </div>
 </div>
-<!-- ================= SCRIPTS ================= -->
+
+<!-- ================= SCRIPTS (CHARGÉS APRÈS TOUTES LES MODALES DU DOM) ================= -->
 <script src="js/sync.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/budget.js"></script>
