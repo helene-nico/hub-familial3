@@ -39,6 +39,9 @@ window.updateGeneralSettings = function() {
     if (userIndex !== -1) {
       appUsers[userIndex] = currentUser;
       localStorage.setItem('app_users', JSON.stringify(appUsers));
+      if (typeof window.saveToUpstash === 'function') {
+        window.saveToUpstash('app_users', appUsers);
+      }
     }
     
     applySettings();
@@ -80,7 +83,7 @@ function getUserDashWidgets() {
     const rawWidgets = localStorage.getItem('dash_widgets_' + currentUser.id);
     if (rawWidgets) return JSON.parse(rawWidgets);
   } catch(e) {
-    console.warn("Erreur de lecture des widgets. Réinitialisation par défaut.");
+    console.warn("Erreur de lecture des widgets.");
   }
   
   return { finances: true, meals: true, missions: true, documents: true };
@@ -88,24 +91,34 @@ function getUserDashWidgets() {
 
 window.openDashboardCustomModal = function() {
   const widgets = getUserDashWidgets();
-  const container = document.getElementById('dashCustomCheckboxes');
+  // Cherche le nouveau conteneur HTML dashCustomCards
+  const container = document.getElementById('dashCustomCards') || document.getElementById('dashCustomCheckboxes');
   if (!container) return;
   container.innerHTML = '';
 
   const list = [
-    { id: 'finances', label: '💰 Bloc Budget' },
-    { id: 'meals', label: '🍽️ Bloc Menus & Recettes' },
-    { id: 'missions', label: '🎯 Bloc Étoiles & Missions' },
-    { id: 'documents', label: '📁 Bloc Coffre-fort Documents' }
+    { id: 'finances', icon: '💰', title: 'Budget', desc: 'Comptes, soldes et opérations' },
+    { id: 'meals', icon: '🍽️', title: 'Menus & Recettes', desc: 'Planning des repas de la semaine' },
+    { id: 'missions', icon: '🎯', title: 'Étoiles & Missions', desc: 'Tâches des enfants et récompenses' },
+    { id: 'documents', icon: '📁', title: 'Documents', desc: 'Classeur et coffre-fort numérique' }
   ];
 
   list.forEach(item => {
     const checked = widgets[item.id] !== false;
     container.innerHTML += `
-      <label class="checkbox-label" style="font-size:0.95rem; display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
-        <input type="checkbox" id="dash_opt_${item.id}" ${checked ? 'checked' : ''} onchange="toggleDashWidget('${item.id}', this.checked)">
-        <span>${item.label}</span>
-      </label>
+      <div class="custom-card-item">
+        <div class="custom-card-info">
+          <span class="custom-card-icon">${item.icon}</span>
+          <div>
+            <div class="custom-card-title">${item.title}</div>
+            <div class="custom-card-desc">${item.desc}</div>
+          </div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="dash_opt_${item.id}" ${checked ? 'checked' : ''} onchange="toggleDashWidget('${item.id}', this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
     `;
   });
 
@@ -126,7 +139,11 @@ window.toggleDashWidget = function(widgetId, isChecked) {
   if (!currentUser) return;
   const widgets = getUserDashWidgets();
   widgets[widgetId] = isChecked;
+  
   localStorage.setItem('dash_widgets_' + currentUser.id, JSON.stringify(widgets));
+  if (typeof window.saveToUpstash === 'function') {
+    window.saveToUpstash('dash_widgets_' + currentUser.id, widgets);
+  }
   renderDashboard();
 };
 
@@ -143,15 +160,10 @@ async function renderDashboard() {
     widgetFin.style.display = (userWidgets.finances === false) ? 'none' : 'flex';
   }
 
-  // 2. Tuile Menus (tuile simple, sans texte ni aperçu du repas)
+  // 2. Tuile Menus
   const widgetMeals = document.getElementById('widget-meals');
   if (widgetMeals) {
     widgetMeals.style.display = (userWidgets.meals === false) ? 'none' : 'flex';
-    const contentDiv = document.getElementById('dashTodayMealsContent');
-    if (contentDiv) {
-      contentDiv.style.display = 'none';
-      contentDiv.innerHTML = '';
-    }
   }
 
   // 3. Tuile Missions
@@ -192,7 +204,7 @@ window.switchMainTab = function(tabId) {
   }
 };
 
-// --- INITIALISATION AU CHARGEMENT ---
+// --- INITIALISATION ---
 window.onload = function() {
   if (typeof appUsers !== 'undefined' && typeof loginAs === 'function' && typeof showLoginScreen === 'function') {
     const cloudUsers = localStorage.getItem('app_users');
@@ -211,6 +223,6 @@ window.onload = function() {
     }
     showLoginScreen();
   } else {
-    console.error("Erreur de chargement : Les modules dépendants ne sont pas chargés.");
+    console.error("Erreur de chargement des scripts.");
   }
 };
