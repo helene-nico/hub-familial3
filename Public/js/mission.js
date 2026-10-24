@@ -36,7 +36,8 @@ const defaultData = {
     { id: 5, isCommon: true, title: "Cabane dans le salon", icon: "⛺", cost: 15 },
     { id: 6, isCommon: true, title: "Soirée film + pop-corn", icon: "🎬", cost: 20 }
   ],
-  pending: []
+  pending: [],
+  completedToday: []
 };
 
 let state = JSON.parse(localStorage.getItem("family_rewards_app")) || defaultData;
@@ -111,6 +112,12 @@ function getAge(birthDateStr) {
   const m = today.getMonth() - bd.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
   return age;
+}
+
+function getDailyKey() {
+  const now = new Date();
+  now.setHours(now.getHours() - 4); // Ne change qu'à partir de 4h du matin
+  return now.toISOString().slice(0, 10);
 }
 
 // --- GESTION DE L'ORDRE QUOTIDIEN (1er, 2ème...) ---
@@ -365,6 +372,12 @@ window.validatePending = function(pendingId, approved) {
       kid.stars = (kid.stars || 0) + item.points;
       kid.lifetimeStars = (kid.lifetimeStars || 0) + item.points;
     }
+    if (!state.completedToday) state.completedToday = [];
+    state.completedToday.push({
+      missionId: item.missionId,
+      kidId: item.kidId,
+      date: getDailyKey()
+    });
   }
   state.pending.splice(index, 1);
   saveState();
@@ -721,6 +734,11 @@ function renderKids() {
       if (xpEl) xpEl.textContent = `${currentLevelXp}/10 XP`;
       if (progEl) progEl.style.width = `${progressPercent}%`;
 
+      const todayKey = getDailyKey();
+      if (state.completedToday && state.completedToday.length > 0) {
+        state.completedToday = state.completedToday.filter(c => c.date === todayKey);
+      }
+
       const kidMissions = state.missions.filter(m => {
         if (m.minAge && kidAge < m.minAge) return false;
         if (m.maxAge && kidAge > m.maxAge) return false;
@@ -728,6 +746,15 @@ function renderKids() {
         if (isChild && m.isRotating) {
           const currentKid = getMissionTurnKid(m);
           if (!currentKid || String(currentKid.id) !== String(window.activeKidId)) return false;
+        }
+        const isDailyOrder = m.isDailyOrder || (m.title && (m.title.toLowerCase().includes('douche') || m.title.toLowerCase().includes('bain')));
+        if (isDailyOrder) {
+          const isDoneToday = (state.completedToday || []).some(c => 
+            String(c.missionId) === String(m.id) && 
+            String(c.kidId) === String(window.activeKidId) && 
+            c.date === todayKey
+          );
+          if (isDoneToday) return false;
         }
         return true;
       });
