@@ -402,39 +402,102 @@ window.removeKid = function(id) {
   }
 };
 
-window.addMission = function() {
-  const title = prompt("Intitulé de la mission :");
-  if (!title) return;
-  const icon = prompt("Émoji :", "⭐") || "⭐";
-  const points = parseInt(prompt("Points attribués :", "1"), 10) || 1;
-  const isRotating = confirm("Cette mission doit-elle tourner entre les enfants (chacun son tour) ?");
-  state.missions.push({
-    id: Date.now(),
-    kidId: 0,
-    title: title.trim(),
-    icon: icon.trim(),
-    points: points,
-    minAge: null,
-    maxAge: null,
-    isRotating: isRotating,
-    currentKidId: null
-  });
-  saveState();
+/* --- GESTION DE LA MODALE MISSION --- */
+window.openMissionModal = function(id = null) {
+  const modal = document.getElementById("missionModal");
+  if (!modal) return;
+  const form = document.getElementById("missionForm");
+  if (form) form.reset();
+
+  const titleEl = document.getElementById("missionModalTitle");
+  const editIdEl = document.getElementById("editMissionId");
+
+  // Remplissage du sélecteur d'enfant
+  const kidSelect = document.getElementById("missionFormKidId");
+  if (kidSelect) {
+    kidSelect.innerHTML = '<option value="0">Tous les enfants</option>' + 
+      (state.kids || []).map(k => `<option value="${k.id}">Pour ${k.name} uniquement</option>`).join('');
+  }
+
+  if (id) {
+    const m = state.missions.find(x => String(x.id) === String(id));
+    if (!m) return;
+    if (titleEl) titleEl.textContent = "Modifier la mission";
+    if (editIdEl) editIdEl.value = m.id;
+
+    document.getElementById("missionFormTitle").value = m.title || "";
+    document.getElementById("missionFormIcon").value = m.icon || "⭐";
+    document.getElementById("missionFormPoints").value = m.points || 1;
+    if (kidSelect) kidSelect.value = m.kidId || 0;
+    document.getElementById("missionFormMinAge").value = (m.minAge !== null && m.minAge !== undefined) ? m.minAge : "";
+    document.getElementById("missionFormMaxAge").value = (m.maxAge !== null && m.maxAge !== undefined) ? m.maxAge : "";
+    document.getElementById("missionFormRotating").checked = !!m.isRotating;
+  } else {
+    if (titleEl) titleEl.textContent = "Nouvelle mission";
+    if (editIdEl) editIdEl.value = "";
+    document.getElementById("missionFormIcon").value = "⭐";
+    document.getElementById("missionFormPoints").value = 1;
+    if (kidSelect) kidSelect.value = "0";
+    document.getElementById("missionFormMinAge").value = "";
+    document.getElementById("missionFormMaxAge").value = "";
+    document.getElementById("missionFormRotating").checked = false;
+  }
+
+  modal.style.display = "flex";
 };
 
-window.editMission = function(id) {
-  const m = state.missions.find(x => String(x.id) === String(id));
-  if (!m) return;
-  const title = prompt("Titre :", m.title);
-  if (title !== null) m.title = title.trim();
-  const icon = prompt("Émoji :", m.icon);
-  if (icon !== null) m.icon = icon.trim();
-  const pts = prompt("Points :", m.points);
-  if (pts !== null) m.points = parseInt(pts, 10) || 1;
-  const isRotating = confirm("Cette mission doit-elle tourner entre les enfants (chacun son tour) ? Actuellement : " + (m.isRotating ? "Oui" : "Non"));
-  m.isRotating = isRotating;
-  saveState();
+window.closeMissionModal = function() {
+  const modal = document.getElementById("missionModal");
+  if (modal) modal.style.display = "none";
 };
+
+window.saveMissionForm = function(e) {
+  if (e) e.preventDefault();
+  const editId = document.getElementById("editMissionId")?.value;
+  const title = document.getElementById("missionFormTitle")?.value.trim();
+  const icon = document.getElementById("missionFormIcon")?.value.trim() || "⭐";
+  const points = parseInt(document.getElementById("missionFormPoints")?.value, 10) || 1;
+  const kidId = parseInt(document.getElementById("missionFormKidId")?.value, 10) || 0;
+
+  const minAgeVal = document.getElementById("missionFormMinAge")?.value.trim();
+  const maxAgeVal = document.getElementById("missionFormMaxAge")?.value.trim();
+  const minAge = minAgeVal !== "" && !isNaN(parseInt(minAgeVal, 10)) ? parseInt(minAgeVal, 10) : null;
+  const maxAge = maxAgeVal !== "" && !isNaN(parseInt(maxAgeVal, 10)) ? parseInt(maxAgeVal, 10) : null;
+  const isRotating = document.getElementById("missionFormRotating")?.checked || false;
+
+  if (!title) return;
+
+  if (editId) {
+    const m = state.missions.find(x => String(x.id) === String(editId));
+    if (m) {
+      m.title = title;
+      m.icon = icon;
+      m.points = points;
+      m.kidId = kidId;
+      m.minAge = minAge;
+      m.maxAge = maxAge;
+      m.isRotating = isRotating;
+    }
+  } else {
+    state.missions.push({
+      id: Date.now(),
+      kidId: kidId,
+      title: title,
+      icon: icon,
+      points: points,
+      minAge: minAge,
+      maxAge: maxAge,
+      isRotating: isRotating,
+      currentKidId: null
+    });
+  }
+
+  saveState();
+  closeMissionModal();
+};
+
+window.addMission = () => openMissionModal();
+window.editMission = (id) => openMissionModal(id);
 
 window.removeMission = function(id) {
   if (confirm("Supprimer cette tâche ?")) {
@@ -443,33 +506,76 @@ window.removeMission = function(id) {
   }
 };
 
-window.addReward = function() {
-  const title = prompt("Intitulé de la récompense :");
-  if (!title) return;
-  const icon = prompt("Émoji :", "🎁") || "🎁";
-  const cost = parseInt(prompt("Coût en étoiles :", "5"), 10) || 5;
-  const isCommon = confirm("Est-ce une récompense collective (Cagnotte commune) ?");
-  state.rewards.push({
-    id: Date.now(),
-    title: title.trim(),
-    icon: icon.trim(),
-    cost: cost,
-    isCommon: isCommon
-  });
-  saveState();
+/* --- GESTION DE LA MODALE RÉCOMPENSE --- */
+window.openRewardModal = function(id = null) {
+  const modal = document.getElementById("rewardModal");
+  if (!modal) return;
+  const form = document.getElementById("rewardForm");
+  if (form) form.reset();
+
+  const titleEl = document.getElementById("rewardModalTitle");
+  const editIdEl = document.getElementById("editRewardId");
+
+  if (id) {
+    const r = state.rewards.find(x => String(x.id) === String(id));
+    if (!r) return;
+    if (titleEl) titleEl.textContent = "Modifier la récompense";
+    if (editIdEl) editIdEl.value = r.id;
+
+    document.getElementById("rewardFormTitle").value = r.title || "";
+    document.getElementById("rewardFormIcon").value = r.icon || "🎁";
+    document.getElementById("rewardFormCost").value = r.cost || 5;
+    document.getElementById("rewardFormType").value = r.isCommon ? "common" : "solo";
+  } else {
+    if (titleEl) titleEl.textContent = "Nouvelle récompense";
+    if (editIdEl) editIdEl.value = "";
+    document.getElementById("rewardFormIcon").value = "🎁";
+    document.getElementById("rewardFormCost").value = 5;
+    document.getElementById("rewardFormType").value = "solo";
+  }
+
+  modal.style.display = "flex";
 };
 
-window.editReward = function(id) {
-  const r = state.rewards.find(x => String(x.id) === String(id));
-  if (!r) return;
-  const title = prompt("Intitulé :", r.title);
-  if (title !== null) r.title = title.trim();
-  const icon = prompt("Émoji :", r.icon);
-  if (icon !== null) r.icon = icon.trim();
-  const cost = prompt("Coût en étoiles :", r.cost);
-  if (cost !== null) r.cost = parseInt(cost, 10) || 1;
-  saveState();
+window.closeRewardModal = function() {
+  const modal = document.getElementById("rewardModal");
+  if (modal) modal.style.display = "none";
 };
+
+window.saveRewardForm = function(e) {
+  if (e) e.preventDefault();
+  const editId = document.getElementById("editRewardId")?.value;
+  const title = document.getElementById("rewardFormTitle")?.value.trim();
+  const icon = document.getElementById("rewardFormIcon")?.value.trim() || "🎁";
+  const cost = parseInt(document.getElementById("rewardFormCost")?.value, 10) || 1;
+  const isCommon = document.getElementById("rewardFormType")?.value === "common";
+
+  if (!title) return;
+
+  if (editId) {
+    const r = state.rewards.find(x => String(x.id) === String(editId));
+    if (r) {
+      r.title = title;
+      r.icon = icon;
+      r.cost = cost;
+      r.isCommon = isCommon;
+    }
+  } else {
+    state.rewards.push({
+      id: Date.now(),
+      title: title,
+      icon: icon,
+      cost: cost,
+      isCommon: isCommon
+    });
+  }
+
+  saveState();
+  closeRewardModal();
+};
+
+window.addReward = () => openRewardModal();
+window.editReward = (id) => openRewardModal(id);
 
 window.removeReward = function(id) {
   if (confirm("Supprimer cette récompense ?")) {
