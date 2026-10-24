@@ -35,7 +35,6 @@ window.updateGeneralSettings = function() {
     currentUser.theme = themeSelect.value;
     currentUser.primaryColor = colorSelect.value;
     
-    // On met à jour l'utilisateur dans le tableau global et on le pousse vers Upstash
     const userIndex = appUsers.findIndex(u => u.id === currentUser.id);
     if (userIndex !== -1) {
       appUsers[userIndex] = currentUser;
@@ -63,7 +62,6 @@ window.openGeneralSettingsModal = function() {
   const profileSection = document.getElementById('appUsersList');
   if (profileSection) profileSection.style.display = (role === 'parent') ? 'flex' : 'none';
   
-  // Rend la liste des profils uniquement si le panneau est visible (optimisation mobile)
   if (role === 'parent' && typeof renderAppUsersList === 'function') {
     renderAppUsersList();
   }
@@ -78,7 +76,6 @@ window.closeGeneralSettingsModal = function() {
 function getUserDashWidgets() {
   if (!currentUser) return { finances: true, meals: true, missions: true, documents: true };
   
-  // Utilisation de try/catch sécurisée au cas où Upstash retourne une chaîne de caractères mal formattée
   try {
     const rawWidgets = localStorage.getItem('dash_widgets_' + currentUser.id);
     if (rawWidgets) return JSON.parse(rawWidgets);
@@ -97,7 +94,7 @@ window.openDashboardCustomModal = function() {
 
   const list = [
     { id: 'finances', label: '💰 Bloc Budget' },
-    { id: 'meals', label: '🍽️ Bloc Menu du Jour' },
+    { id: 'meals', label: '🍽️ Bloc Menus & Recettes' },
     { id: 'missions', label: '🎯 Bloc Étoiles & Missions' },
     { id: 'documents', label: '📁 Bloc Coffre-fort Documents' }
   ];
@@ -129,7 +126,6 @@ window.toggleDashWidget = function(widgetId, isChecked) {
   if (!currentUser) return;
   const widgets = getUserDashWidgets();
   widgets[widgetId] = isChecked;
-  // Déclenche l'envoi immédiat au serveur via la fonction interceptée dans sync.js
   localStorage.setItem('dash_widgets_' + currentUser.id, JSON.stringify(widgets));
   renderDashboard();
 };
@@ -139,128 +135,35 @@ window.toggleDashWidget = function(widgetId, isChecked) {
 async function renderDashboard() {
   if (!currentUser) return;
   
-  const now = new Date();
-  const dateFormatted = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const dashDateLabel = document.getElementById('dashDateLabel');
-  if (dashDateLabel) dashDateLabel.textContent = dateFormatted.charAt(0).toUpperCase() + dateFormatted.slice(1);
-
   const userWidgets = getUserDashWidgets();
 
-  // 1. Widget Budget
+  // 1. Tuile Budget
   const widgetFin = document.getElementById('widget-finances');
   if (widgetFin) {
-    if (userWidgets.finances === false) {
-      widgetFin.style.display = 'none';
-    } else {
-      widgetFin.style.display = 'flex';
-      
-      if (typeof getAccessibleAccounts === 'function' && typeof currentDateBudget !== 'undefined') {
-        const accessibleAccs = getAccessibleAccounts();
-        const year = currentDateBudget.getFullYear();
-        const month = currentDateBudget.getMonth();
-        const currentMonthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-        const todayStr = now.toISOString().split('T')[0];
-
-        let totalCumulReal = 0;
-        let totalCumulForecast = 0;
-        let totalToClear = 0;
-
-        accessibleAccs.forEach(acc => {
-          let txs = [];
-          try {
-             txs = JSON.parse(localStorage.getItem('transactions_' + acc.id)) || [];
-          } catch(e) {}
-          
-          let accReal = acc.baseBalance || 0;
-          let accCarry = acc.baseBalance || 0;
-          let mIncome = 0;
-          let mExpense = 0;
-
-          txs.forEach(tx => {
-            if (tx.cleared) accReal += (tx.type === 'income' ? tx.amount : -tx.amount);
-            if (typeof getBudgetMonthKey === 'function' && getBudgetMonthKey(tx.date) < currentMonthKey) {
-              accCarry += (tx.type === 'income' ? tx.amount : -tx.amount);
-            }
-          });
-
-          txs.filter(tx => typeof getBudgetMonthKey === 'function' && getBudgetMonthKey(tx.date) === currentMonthKey).forEach(tx => {
-            if (tx.type === 'income') mIncome += tx.amount; else mExpense += tx.amount;
-            if (!tx.cleared) totalToClear++;
-          });
-
-          totalCumulReal += accReal;
-          totalCumulForecast += (accCarry + (mIncome - mExpense));
-        });
-
-        const dashRealBal = document.getElementById('dashRealBal');
-        const dashForecastBal = document.getElementById('dashForecastBal');
-        const dashToClearCount = document.getElementById('dashToClearCount');
-        
-        if (dashRealBal && typeof formatMoney === 'function') dashRealBal.textContent = formatMoney(totalCumulReal);
-        if (dashForecastBal && typeof formatMoney === 'function') dashForecastBal.textContent = formatMoney(totalForecastBalance);
-        if (dashToClearCount) dashToClearCount.textContent = totalToClear + (totalToClear > 1 ? ' opérations' : ' opération');
-      }
-    }
+    widgetFin.style.display = (userWidgets.finances === false) ? 'none' : 'flex';
   }
 
-  // 1 bis. Widget Repas du Jour (récupération locale / Upstash)
+  // 2. Tuile Menus (tuile simple, sans texte ni aperçu du repas)
   const widgetMeals = document.getElementById('widget-meals');
   if (widgetMeals) {
-    if (userWidgets.meals === false) {
-      widgetMeals.style.display = 'none';
-    } else {
-      widgetMeals.style.display = 'flex';
-      
-      try {
-        const rawWeeklyPlan = localStorage.getItem('weekly_meals_plan');
-        const wp = rawWeeklyPlan ? JSON.parse(rawWeeklyPlan) : (typeof weeklyPlan !== 'undefined' ? weeklyPlan : {});
-        const cat = typeof RECIPES_CATALOG !== 'undefined' ? RECIPES_CATALOG : [];
-        const rawCustom = localStorage.getItem('custom_recipes');
-        const custom = rawCustom ? JSON.parse(rawCustom) : [];
-        const allR = [...cat, ...custom];
-
-        const dNames = ['sun','mon','tue','wed','thu','fri','sat'];
-        const currentDayId = dNames[now.getDay()];
-        const todayEveId = currentDayId + '_eve';
-        
-        const meal = wp[todayEveId];
-        const contentDiv = document.getElementById('dashTodayMealsContent');
-        
-        if (contentDiv) {
-          contentDiv.style.display = 'block';
-          if (meal && (meal.customTitle || meal.recipeId)) {
-            const recipe = meal.recipeId ? allR.find(r => r.id === meal.recipeId) : null;
-            const icon = recipe ? (recipe.icon || '🍽️') : '🍽️';
-            const title = meal.customTitle || (recipe ? recipe.title : 'Repas de ce soir');
-            contentDiv.innerHTML = `<div style="font-size:1.5rem; margin-bottom:4px;">${icon}</div><div style="font-weight:700; font-size:0.9rem;">${title}</div>`;
-          } else {
-            contentDiv.innerHTML = `<div style="font-size:0.85rem; color:var(--text-muted);">Aucun repas prévu ce soir.</div>`;
-          }
-        }
-      } catch (e) {
-        console.warn('Erreur récupération repas dashboard', e);
-      }
+    widgetMeals.style.display = (userWidgets.meals === false) ? 'none' : 'flex';
+    const contentDiv = document.getElementById('dashTodayMealsContent');
+    if (contentDiv) {
+      contentDiv.style.display = 'none';
+      contentDiv.innerHTML = '';
     }
   }
 
-  // 2. Widget Missions
+  // 3. Tuile Missions
   const widgetMis = document.getElementById('widget-missions');
   if (widgetMis) {
-    if (userWidgets.missions === false) {
-      widgetMis.style.display = 'none';
-    } else {
-      widgetMis.style.display = 'flex';
-    }
+    widgetMis.style.display = (userWidgets.missions === false) ? 'none' : 'flex';
   }
 
-  // 3. Widget Documents
+  // 4. Tuile Documents
   const widgetDoc = document.getElementById('widget-documents');
   if (widgetDoc) {
-    if (userWidgets.documents === false) {
-      widgetDoc.style.display = 'none';
-    } else {
-      widgetDoc.style.display = 'flex';
-    }
+    widgetDoc.style.display = (userWidgets.documents === false) ? 'none' : 'flex';
   }
 }
 
@@ -289,11 +192,9 @@ window.switchMainTab = function(tabId) {
   }
 };
 
-// --- SYNCHRONISATION FORCÉE DU NOUVEAU PROFIL AU DÉMARRAGE ---
+// --- INITIALISATION AU CHARGEMENT ---
 window.onload = function() {
   if (typeof appUsers !== 'undefined' && typeof loginAs === 'function' && typeof showLoginScreen === 'function') {
-    
-    // Si Upstash a rechargé les données dans sync.js, on rafraîchit la variable applicative appUsers
     const cloudUsers = localStorage.getItem('app_users');
     if (cloudUsers) {
       try {
