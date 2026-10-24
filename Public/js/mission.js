@@ -1,4 +1,4 @@
-const APP_VERSION = 16;
+const APP_VERSION = 17;
 
 const defaultData = {
   version: APP_VERSION,
@@ -43,13 +43,9 @@ let state = JSON.parse(localStorage.getItem("family_rewards_app")) || defaultDat
 
 if (!state || !state.kids || state.kids.length === 0) {
   state = defaultData;
-  if (typeof originalSetItem === "function") {
-    originalSetItem("family_rewards_app", JSON.stringify(state));
-    originalSetItem("family_missions_state", JSON.stringify(state));
-  } else {
-    localStorage.setItem("family_rewards_app", JSON.stringify(state));
-    localStorage.setItem("family_missions_state", JSON.stringify(state));
-  }
+  const setter = (typeof originalSetItem === "function") ? originalSetItem : localStorage.setItem.bind(localStorage);
+  setter("family_rewards_app", JSON.stringify(state));
+  setter("family_missions_state", JSON.stringify(state));
 }
 
 window.kidsState = state;
@@ -62,10 +58,9 @@ window.setKidsState = function(remoteState) {
   if (remoteState && remoteState.kids && remoteState.kids.length > 0) {
     state = remoteState;
     window.kidsState = state;
-    if (typeof originalSetItem === "function") {
-      originalSetItem("family_rewards_app", JSON.stringify(state));
-      originalSetItem("family_missions_state", JSON.stringify(state));
-    }
+    const setter = (typeof originalSetItem === "function") ? originalSetItem : localStorage.setItem.bind(localStorage);
+    setter("family_rewards_app", JSON.stringify(state));
+    setter("family_missions_state", JSON.stringify(state));
     renderKids();
     if (typeof renderDashboard === "function") renderDashboard();
   }
@@ -80,13 +75,11 @@ function saveState() {
   renderKids();
   if (typeof renderDashboard === "function") renderDashboard();
   
-  // Envoi vers le serveur via sync.js s'il est là
   if (typeof window.saveToUpstash === 'function') {
     window.saveToUpstash('family_rewards_app', state);
   }
 }
 window.saveKidsState = saveState;
-
 
 function getAge(birthDateStr) {
   if (!birthDateStr) return 0;
@@ -98,17 +91,18 @@ function getAge(birthDateStr) {
   return age;
 }
 
-
 // --- GESTION DE L'ORDRE QUOTIDIEN (1er, 2ème...) ---
 function getKidDailyOrder(kidId, eligibleKids) {
   if (!eligibleKids || eligibleKids.length === 0) return 0;
   const epoch = new Date("2024-01-01").getTime();
   const now = new Date();
-  now.setHours(now.getHours() - 4); // Ne change qu'à partir de 4h du matin
+  now.setHours(now.getHours() - 4); // Bascule à 4h du matin
   const daysPassed = Math.floor((now.getTime() - epoch) / (1000 * 60 * 60 * 24));
   const kidIndex = eligibleKids.findIndex(k => String(k.id) === String(kidId));
   if (kidIndex === -1) return 0;
-  return ((kidIndex + daysPassed) % eligibleKids.length) + 1;
+  
+  const rankZeroBased = ((kidIndex - daysPassed) % eligibleKids.length + eligibleKids.length) % eligibleKids.length;
+  return rankZeroBased + 1;
 }
 
 function getOrderLabel(rank) {
@@ -153,7 +147,6 @@ window.passMissionTurn = function(missionId) {
   saveState();
 };
 
-
 window.selectKid = function(id) {
   if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'child') {
     return;
@@ -186,7 +179,6 @@ window.submitMission = function(missionId) {
 
   if (!state.pending) state.pending = [];
   
-  // Vérifie si la tâche est déjà en attente
   const alreadyPending = state.pending.some(p => String(p.missionId) === String(mission.id) && String(p.kidId) === String(kid.id));
   if (alreadyPending) {
     alert("Cette mission est déjà en attente de validation par les parents !");
@@ -254,6 +246,7 @@ window.donateToCommon = function() {
   }
 };
 
+// --- GESTION DU CODE PIN PARENT ---
 window.openParentPinModal = function() {
   const modal = document.getElementById('parent-pin-modal');
   const input = document.getElementById('parent-pin-input');
@@ -273,12 +266,15 @@ window.submitParentPin = function() {
   const input = document.getElementById('parent-pin-input');
   const entered = input ? input.value.trim() : '';
   const currentPin = state.pin || "0000";
+  const userPin = (typeof currentUser !== 'undefined' && currentUser && currentUser.pin) ? currentUser.pin : null;
 
-  if (entered === currentPin || entered === "0000" || entered === "1234") {
+  if (entered === currentPin || entered === userPin || entered === "0000" || entered === "1234") {
     window.closeParentPinModal();
+    // 1. Basculer d'abord sur l'onglet missions pour éviter la réinitialisation
+    if (typeof switchMainTab === 'function') switchMainTab('missions');
+    // 2. Activer formellement le mode parent
     window.isParentMode = true;
     window.parentCurrentSubpage = 'main';
-    if (typeof switchMainTab === 'function') switchMainTab('missions');
     renderKids();
   } else {
     alert("Code PIN erroné.");
@@ -340,7 +336,7 @@ window.submitChangePin = function(e) {
   alert("Nouveau code PIN enregistré !");
 };
 
-// --- VALIDATION PARENTALE ---
+// --- ACTIONS PARENTALES ---
 window.validatePending = function(pendingId, approved) {
   const index = (state.pending || []).findIndex(p => String(p.id) === String(pendingId));
   if (index === -1) return;
@@ -354,6 +350,14 @@ window.validatePending = function(pendingId, approved) {
   }
   state.pending.splice(index, 1);
   saveState();
+};
+
+window.validatePendingTask = function(id) {
+  window.validatePending(id, true);
+};
+
+window.refusePendingTask = function(id) {
+  window.validatePending(id, false);
 };
 
 window.adjustKidStars = function(kidId, delta) {
@@ -378,6 +382,10 @@ window.togglePresence = function(kidId) {
     kid.present = kid.present === false;
     saveState();
   }
+};
+
+window.toggleKidPresence = function(id) {
+  window.togglePresence(id);
 };
 
 window.addKid = function() {
@@ -418,7 +426,6 @@ window.removeKid = function(id) {
     saveState();
   }
 };
-
 
 /* --- GESTION DE LA MODALE MISSION --- */
 window.openMissionModal = function(id = null) {
@@ -605,7 +612,6 @@ window.removeReward = function(id) {
     saveState();
   }
 };
-
 
 window.openParentDomainPage = function(page) {
   window.parentCurrentSubpage = page;
@@ -843,6 +849,9 @@ function renderKids() {
     }
   } else {
     // --- VUE PARENT ---
+    const parentCommonStars = document.getElementById("parent-common-stars");
+    if (parentCommonStars) parentCommonStars.textContent = state.commonStars || 0;
+
     const pendingContainer = document.getElementById("pending-list");
     if (pendingContainer) {
       if (!state.pending || state.pending.length === 0) {
