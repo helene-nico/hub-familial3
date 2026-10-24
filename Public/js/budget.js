@@ -1,50 +1,74 @@
-// --- SYNCHRONISATION AVEC UPSTASH (DÉLÉGUÉE À SYNC.JS) ---
+// --- SYNCHRONISATION BUDGÉTAIRE AVEC UPSTASH (SÉCURISÉE) ---
+
+// Sauvegarde vers le serveur en utilisant la file d'attente de sync.js si disponible
 async function saveToCloud(key, value) {
   if (typeof window.saveToUpstash === 'function') {
-    window.saveToUpstash(key, value);
+    return window.saveToUpstash(key, value);
+  }
+  try {
+    await fetch(`/api/store/${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value })
+    });
+  } catch (err) {
+    console.error(`Erreur d'envoi cloud (${key}) :`, err);
   }
 }
 
+// Suppression distante
 async function deleteFromCloud(key) {
   try {
     await fetch(`/api/store/${encodeURIComponent(key)}`, { method: 'DELETE' });
   } catch (err) {
-    console.error(`Erreur suppression (${key}) :`, err);
+    console.error(`Erreur suppression cloud (${key}) :`, err);
   }
 }
 
-// Rafraîchissement direct de l'affichage local sans requêtes superflues
-function refreshBudgetDisplay() {
-  const storedAccs = localStorage.getItem('bank_accounts');
-  if (storedAccs) {
-    try { bankAccounts = JSON.parse(storedAccs); } catch (e) {}
-  }
-  renderAccountsCards();
-  if (currentAccountId) {
-    loadCurrentAccountData();
-  }
-}
+// Récupération des données distantes sans redéclencher de boucle d'écriture
+async function syncFromCloud() {
+  try {
+    const res = await fetch('/api/sync', { cache: 'no-store' });
+    if (!res.ok) return;
+    const cloudData = await res.json();
 
-window.addEventListener('focus', refreshBudgetDisplay);
+    if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
+      // 1. Mise à jour silencieuse du stockage local (sans interférence avec sync.js)
+      const setter = (typeof originalSetItem === 'function') ? originalSetItem : localStorage.setItem.bind(localStorage);
+      Object.keys(cloudData).forEach(key => {
+        const val = cloudData[key];
+        setter(key, typeof val === 'string' ? val : JSON.stringify(val));
+      });
 
-// --- DONNÉES FINANCIÈRES ---
+      // 2. Actualisation de la liste des comptes en mémoire vive
+      if (cloudData.bank_accounts) {
+        bankAccounts = typeof cloudData.bank_accounts === 'string'
+          ? JSON.parse(cloudData.bank_accounts)
+          : cloudData.bank_accounts;
+      }
+
+      // 3. Rafraîchissement graphique immédiat
+      renderAccountsCards();
+      if (currentAccountId) {
+        loadCurrentAccountData();
       }
     } else {
-      // Si la base Upstash est encore vide, on initialise avec les comptes par défaut
+      // Initialisation par défaut si Upstash est encore totalement vierge
       if (bankAccounts && bankAccounts.length > 0) {
         saveToCloud('bank_accounts', bankAccounts);
       }
     }
   } catch (err) {
-    console.error("Erreur de synchronisation cloud :", err);
+    console.error("Erreur de synchronisation cloud budget :", err);
   }
 }
 
-// Synchronise au chargement, au retour sur l'onglet et toutes les 30 secondes
+// Déclencheurs de synchronisation : au chargement, au focus et toutes les 15 secondes
 syncFromCloud();
 window.addEventListener('focus', syncFromCloud);
-setInterval(syncFromCloud, 30000);
+setInterval(syncFromCloud, 15000);
 
+// --- DONNÉES FINANCIÈRES ---
 // --- DONNÉES FINANCIÈRES ---
 let bankAccounts = JSON.parse(localStorage.getItem('bank_accounts')) || [
   { id: 'acc_comm', name: 'Compte Commun', icon: '🏦', ownerId: 'shared', sharing: 'all', baseBalance: 0 },
