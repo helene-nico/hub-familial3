@@ -35,6 +35,7 @@ window.updateGeneralSettings = function() {
     currentUser.theme = themeSelect.value;
     currentUser.primaryColor = colorSelect.value;
     
+    // On met à jour l'utilisateur dans le tableau global et on le pousse vers Upstash
     const userIndex = appUsers.findIndex(u => u.id === currentUser.id);
     if (userIndex !== -1) {
       appUsers[userIndex] = currentUser;
@@ -46,19 +47,24 @@ window.updateGeneralSettings = function() {
 };
 
 window.openGeneralSettingsModal = function() {
-  document.getElementById('generalSettingsModal').style.display = 'flex';
+  const modal = document.getElementById('generalSettingsModal');
+  if (modal) modal.style.display = 'flex';
   
   const themeSelect = document.getElementById('themeSelect');
   const colorSelect = document.getElementById('primaryColorSelect');
-  if (themeSelect) themeSelect.value = currentUser.theme || 'dark';
-  if (colorSelect) colorSelect.value = currentUser.primaryColor || '#38bdf8';
+  
+  const theme = (currentUser && currentUser.theme) ? currentUser.theme : 'dark';
+  const color = (currentUser && currentUser.primaryColor) ? currentUser.primaryColor : '#38bdf8';
+  const role = (currentUser && currentUser.role) ? currentUser.role : 'parent';
+
+  if (themeSelect) themeSelect.value = theme;
+  if (colorSelect) colorSelect.value = color;
   
   const profileSection = document.getElementById('appUsersList');
-  const profileTitle = document.getElementById('adminProfileTitle');
-  if (profileSection) profileSection.style.display = (currentUser.role === 'parent') ? 'flex' : 'none';
-  if (profileTitle) profileTitle.style.display = (currentUser.role === 'parent') ? 'flex' : 'none';
+  if (profileSection) profileSection.style.display = (role === 'parent') ? 'flex' : 'none';
   
-  if (currentUser.role === 'parent' && typeof renderAppUsersList === 'function') {
+  // Rend la liste des profils uniquement si le panneau est visible (optimisation mobile)
+  if (role === 'parent' && typeof renderAppUsersList === 'function') {
     renderAppUsersList();
   }
 };
@@ -71,12 +77,16 @@ window.closeGeneralSettingsModal = function() {
 // --- PERSONNALISATION DU TABLEAU DE BORD ---
 function getUserDashWidgets() {
   if (!currentUser) return { finances: true, meals: true, missions: true, documents: true };
-  return JSON.parse(localStorage.getItem('dash_widgets_' + currentUser.id)) || {
-    finances: true,
-    meals: true,
-    missions: true,
-    documents: true
-  };
+  
+  // Utilisation de try/catch sécurisée au cas où Upstash retourne une chaîne de caractères mal formattée
+  try {
+    const rawWidgets = localStorage.getItem('dash_widgets_' + currentUser.id);
+    if (rawWidgets) return JSON.parse(rawWidgets);
+  } catch(e) {
+    console.warn("Erreur de lecture des widgets. Réinitialisation par défaut.");
+  }
+  
+  return { finances: true, meals: true, missions: true, documents: true };
 }
 
 window.openDashboardCustomModal = function() {
@@ -95,9 +105,9 @@ window.openDashboardCustomModal = function() {
   list.forEach(item => {
     const checked = widgets[item.id] !== false;
     container.innerHTML += `
-      <label class="checkbox-label" style="font-size:0.95rem;">
+      <label class="checkbox-label" style="font-size:0.95rem; display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
         <input type="checkbox" id="dash_opt_${item.id}" ${checked ? 'checked' : ''} onchange="toggleDashWidget('${item.id}', this.checked)">
-        ${item.label}
+        <span>${item.label}</span>
       </label>
     `;
   });
@@ -111,18 +121,24 @@ window.closeDashboardCustomModal = function() {
   if (modal) modal.style.display = 'none';
 };
 
+window.saveDashboardCustom = function() {
+  closeDashboardCustomModal();
+};
+
 window.toggleDashWidget = function(widgetId, isChecked) {
   if (!currentUser) return;
   const widgets = getUserDashWidgets();
   widgets[widgetId] = isChecked;
+  // Déclenche l'envoi immédiat au serveur via la fonction interceptée dans sync.js
   localStorage.setItem('dash_widgets_' + currentUser.id, JSON.stringify(widgets));
   renderDashboard();
 };
 
 
-// --- RENDU DU TABLEAU DE BORD ---
+// --- RENDU DYNAMIQUE DU TABLEAU DE BORD ---
 async function renderDashboard() {
   if (!currentUser) return;
+  
   const now = new Date();
   const dateFormatted = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const dashDateLabel = document.getElementById('dashDateLabel');
@@ -150,7 +166,11 @@ async function renderDashboard() {
         let totalToClear = 0;
 
         accessibleAccs.forEach(acc => {
-          const txs = JSON.parse(localStorage.getItem('transactions_' + acc.id)) || [];
+          let txs = [];
+          try {
+             txs = JSON.parse(localStorage.getItem('transactions_' + acc.id)) || [];
+          } catch(e) {}
+          
           let accReal = acc.baseBalance || 0;
           let accCarry = acc.baseBalance || 0;
           let mIncome = 0;
@@ -158,7 +178,9 @@ async function renderDashboard() {
 
           txs.forEach(tx => {
             if (tx.cleared) accReal += (tx.type === 'income' ? tx.amount : -tx.amount);
-            if (typeof getBudgetMonthKey === 'function' && getBudgetMonthKey(tx.date) < currentMonthKey) accCarry += (tx.type === 'income' ? tx.amount : -tx.amount);
+            if (typeof getBudgetMonthKey === 'function' && getBudgetMonthKey(tx.date) < currentMonthKey) {
+              accCarry += (tx.type === 'income' ? tx.amount : -tx.amount);
+            }
           });
 
           txs.filter(tx => typeof getBudgetMonthKey === 'function' && getBudgetMonthKey(tx.date) === currentMonthKey).forEach(tx => {
@@ -175,80 +197,59 @@ async function renderDashboard() {
         const dashToClearCount = document.getElementById('dashToClearCount');
         
         if (dashRealBal && typeof formatMoney === 'function') dashRealBal.textContent = formatMoney(totalCumulReal);
-        if (dashForecastBal && typeof formatMoney === 'function') dashForecastBal.textContent = formatMoney(totalCumulForecast);
+        if (dashForecastBal && typeof formatMoney === 'function') dashForecastBal.textContent = formatMoney(totalForecastBalance);
         if (dashToClearCount) dashToClearCount.textContent = totalToClear + (totalToClear > 1 ? ' opérations' : ' opération');
       }
     }
   }
 
-  // 1 bis. Widget Repas du Jour
+  // 1 bis. Widget Repas du Jour (récupération locale / Upstash)
   const widgetMeals = document.getElementById('widget-meals');
   if (widgetMeals) {
     if (userWidgets.meals === false) {
       widgetMeals.style.display = 'none';
     } else {
       widgetMeals.style.display = 'flex';
-      // Optionnel : afficher le menu de ce soir si meals.js est actif
-      if (typeof weeklyPlan !== 'undefined' && typeof RECIPES_CATALOG !== 'undefined') {
+      
+      try {
+        const rawWeeklyPlan = localStorage.getItem('weekly_meals_plan');
+        const wp = rawWeeklyPlan ? JSON.parse(rawWeeklyPlan) : (typeof weeklyPlan !== 'undefined' ? weeklyPlan : {});
+        const cat = typeof RECIPES_CATALOG !== 'undefined' ? RECIPES_CATALOG : [];
+        const rawCustom = localStorage.getItem('custom_recipes');
+        const custom = rawCustom ? JSON.parse(rawCustom) : [];
+        const allR = [...cat, ...custom];
+
         const dNames = ['sun','mon','tue','wed','thu','fri','sat'];
         const currentDayId = dNames[now.getDay()];
         const todayEveId = currentDayId + '_eve';
-        const meal = weeklyPlan[todayEveId];
+        
+        const meal = wp[todayEveId];
         const contentDiv = document.getElementById('dashTodayMealsContent');
+        
         if (contentDiv) {
-          contentDiv.parentElement.style.display = 'block';
-          if (meal && meal.customTitle) {
-            const recipe = meal.recipeId ? RECIPES_CATALOG.find(r => r.id === meal.recipeId) : null;
+          contentDiv.style.display = 'block';
+          if (meal && (meal.customTitle || meal.recipeId)) {
+            const recipe = meal.recipeId ? allR.find(r => r.id === meal.recipeId) : null;
             const icon = recipe ? (recipe.icon || '🍽️') : '🍽️';
-            contentDiv.innerHTML = `<div style="font-size:1.5rem; margin-bottom:4px;">${icon}</div><div style="font-weight:700; font-size:0.9rem;">${meal.customTitle}</div>`;
+            const title = meal.customTitle || (recipe ? recipe.title : 'Repas de ce soir');
+            contentDiv.innerHTML = `<div style="font-size:1.5rem; margin-bottom:4px;">${icon}</div><div style="font-weight:700; font-size:0.9rem;">${title}</div>`;
           } else {
             contentDiv.innerHTML = `<div style="font-size:0.85rem; color:var(--text-muted);">Aucun repas prévu ce soir.</div>`;
           }
         }
+      } catch (e) {
+        console.warn('Erreur récupération repas dashboard', e);
       }
     }
   }
 
-  // 2. Widget Missions (Sécurisé)
+  // 2. Widget Missions
   const widgetMis = document.getElementById('widget-missions');
   if (widgetMis) {
     if (userWidgets.missions === false) {
       widgetMis.style.display = 'none';
     } else {
       widgetMis.style.display = 'flex';
-      
-      try {
-        // Tentative de récupération directe depuis le localStorage si la variable mémoire est inaccessible
-        const stateData = JSON.parse(localStorage.getItem('family_missions_state'));
-        
-        if (stateData) {
-          const dashPendingBadge = document.getElementById('dashPendingBadge');
-          const dashCommonStars = document.getElementById('dashCommonStars');
-          const dashKidsList = document.getElementById('dashKidsList');
-          
-          const pendingCount = (stateData.pending && Array.isArray(stateData.pending)) ? stateData.pending.length : 0;
-          if (dashPendingBadge) {
-             dashPendingBadge.textContent = pendingCount > 0 ? `${pendingCount} en attente` : 'Tout est validé';
-             dashPendingBadge.style.display = 'inline-block';
-             dashPendingBadge.className = pendingCount > 0 ? 'badge badge-recurring' : 'badge badge-cat';
-          }
-          if (dashCommonStars) {
-             dashCommonStars.parentElement.style.display = 'block';
-             dashCommonStars.textContent = `${stateData.commonStars || 0} ⭐`;
-          }
-          if (dashKidsList && Array.isArray(stateData.kids)) {
-            dashKidsList.parentElement.style.display = 'block';
-            dashKidsList.innerHTML = stateData.kids.map(k => `
-              <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.9rem;">
-                <span>${k.avatar || '🧑'} <b>${k.name}</b></span> 
-                <span style="font-weight:700; color:#fbbf24;">${k.stars || 0} ⭐</span>
-              </div>
-            `).join("");
-          }
-        }
-      } catch (err) {
-        console.warn("Impossible de lire les données des missions pour le dashboard :", err);
-      }
     }
   }
 
@@ -259,30 +260,6 @@ async function renderDashboard() {
       widgetDoc.style.display = 'none';
     } else {
       widgetDoc.style.display = 'flex';
-      if (typeof getDB === 'function' && typeof canAccessFolder === 'function') {
-        try {
-          const db = await getDB();
-          const txDB = db.transaction('documents', 'readonly');
-          txDB.objectStore('documents').getAll().onsuccess = (e) => {
-            const docs = e.target.result || [];
-            const accessibleDocs = docs.filter(d => {
-              if (typeof folders === 'undefined') return true;
-              const folder = folders.find(f => f.id === d.folderId);
-              if (!folder) return true;
-              return canAccessFolder(folder);
-            });
-            const dashDocCount = document.getElementById('dashDocCount');
-            const dashLastDoc = document.getElementById('dashLastDoc');
-            if (dashDocCount) {
-              dashDocCount.parentElement.style.display = 'block';
-              dashDocCount.textContent = accessibleDocs.length + ' documents';
-            }
-            if (dashLastDoc) dashLastDoc.textContent = accessibleDocs.length > 0 ? accessibleDocs[accessibleDocs.length - 1].name : 'Aucun document';
-          };
-        } catch (err) {
-          console.error(err);
-        }
-      }
     }
   }
 }
@@ -306,15 +283,24 @@ window.switchMainTab = function(tabId) {
   if (tabId === 'meals' && typeof renderMeals === 'function') renderMeals();
   if (tabId === 'documents' && typeof renderDocuments === 'function') renderDocuments();
   
-  // Appel sécurisé pour les missions : tente renderKids() puis initialisation parentale
   if (tabId === 'missions') {
     if (typeof renderKids === 'function') renderKids();
     if (typeof renderChildView === 'function') renderChildView();
   }
 };
-// --- INITIALISATION ---
+
+// --- SYNCHRONISATION FORCÉE DU NOUVEAU PROFIL AU DÉMARRAGE ---
 window.onload = function() {
   if (typeof appUsers !== 'undefined' && typeof loginAs === 'function' && typeof showLoginScreen === 'function') {
+    
+    // Si Upstash a rechargé les données dans sync.js, on rafraîchit la variable applicative appUsers
+    const cloudUsers = localStorage.getItem('app_users');
+    if (cloudUsers) {
+      try {
+        appUsers = JSON.parse(cloudUsers);
+      } catch(e) {}
+    }
+
     let savedSession = sessionStorage.getItem('activeUserId');
     if (savedSession) {
       let u = appUsers.find(x => x.id === savedSession);
@@ -324,6 +310,6 @@ window.onload = function() {
     }
     showLoginScreen();
   } else {
-    console.error("Erreur de chargement : auth.js semble manquant.");
+    console.error("Erreur de chargement : Les modules dépendants ne sont pas chargés.");
   }
 };
