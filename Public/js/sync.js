@@ -61,11 +61,16 @@ window.syncFromUpstash = async function() {
         }
       }
 
-      // 3. Mise à jour des missions
-      if ((remoteData.family_rewards_app || remoteData.family_missions_state) && typeof renderKids === 'function') {
+     // 3. Mise à jour des missions et étoiles
+      if (remoteData.family_rewards_app || remoteData.family_missions_state) {
         const missionsRaw = remoteData.family_rewards_app || remoteData.family_missions_state;
-        window.kidsState = typeof missionsRaw === 'string' ? JSON.parse(missionsRaw) : missionsRaw;
-        renderKids();
+        const parsedMissions = typeof missionsRaw === 'string' ? JSON.parse(missionsRaw) : missionsRaw;
+        if (typeof window.setKidsState === 'function') {
+          window.setKidsState(parsedMissions);
+        } else {
+          window.kidsState = parsedMissions;
+          if (typeof renderKids === 'function') renderKids();
+        }
       }
 
       // 4. Mise à jour des repas
