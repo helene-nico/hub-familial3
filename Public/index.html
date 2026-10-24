@@ -92,53 +92,80 @@
 
   <!-- ================= ONGLET 2 : COMPTES & FINANCES ================= -->
   <section id="tab-comptes" class="tab-content">
-    <div class="accounts-overview-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="btn-nav" onclick="changeBudgetMonth(-1)">◀</button>
-          <h3 id="currentMonthLabel" style="margin: 0; min-width: 140px; text-align: center; font-size: 1.1rem;">Mois en cours</h3>
-          <button class="btn-nav" onclick="changeBudgetMonth(1)">▶</button>
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn-primary" onclick="openAddTransactionModal()">+ Opération</button>
-          <button class="btn-nav" onclick="openManageAccountsModal()">⚙️ Comptes</button>
-        </div>
+    
+    <!-- VUE 1 : UNIQUEMENT LA LISTE DES COMPTES -->
+    <div id="budget-accounts-view">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800;">Mes Comptes</h3>
+        <button class="btn-primary" onclick="openAccountModal()">+ Nouveau compte</button>
       </div>
 
+      <!-- Grille des comptes (cliquer sur un compte ouvre sa vue détaillée) -->
       <div class="accounts-cards-grid" id="accountsCardsGrid"></div>
     </div>
 
-    <div class="grid-cards" style="margin-top: 16px;">
-      <div class="card">
-        <div class="card-title">Solde Réel</div>
-        <div class="card-value val-real" id="totalRealBalance">0,00 €</div>
+    <!-- VUE 2 : DÉTAIL DU COMPTE SÉLECTIONNÉ (Masquée par défaut) -->
+    <div id="budget-detail-view" class="hidden">
+      
+      <!-- En-tête : retour aux comptes + nom du compte actif -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn-nav" onclick="showBudgetAccountsView()">◀ Comptes</button>
+          <h3 id="activeAccountNameLabel" style="margin: 0; font-size: 1.15rem; font-weight: 800;">Compte</h3>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-primary" onclick="openTxModal()">+ Opération</button>
+          <button class="btn-nav" onclick="openEditActiveAccountModal()">⚙️ Gérer</button>
+        </div>
       </div>
-      <div class="card">
-        <div class="card-title">Prévisionnel</div>
-        <div class="card-value val-forecast" id="totalForecastBalance">0,00 €</div>
+
+      <!-- Sélecteur de mois opérationnel -->
+      <div class="accounts-overview-section" style="padding: 10px 14px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <button class="btn-nav" onclick="changeMonth(-1)">◀ Mois précédent</button>
+          <h3 id="currentMonthLabel" style="margin: 0; min-width: 150px; text-align: center; font-size: 1.05rem;">Mois en cours</h3>
+          <button class="btn-nav" onclick="changeMonth(1)">Mois suivant ▶</button>
+        </div>
       </div>
-      <div class="card">
-        <div class="card-title">À Pointer</div>
-        <div class="card-value" id="totalDiffBalance">0,00 €</div>
+
+      <!-- Soldes Réel et Prévisionnel -->
+      <div class="grid-cards">
+        <div class="card">
+          <div class="card-title">Solde Réel (Pointé)</div>
+          <div class="card-value val-real" id="realBalance">0,00 €</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Solde Prévisionnel</div>
+          <div class="card-value val-forecast" id="forecastBalance">0,00 €</div>
+        </div>
       </div>
+
+      <!-- Filtre des opérations pointées -->
+      <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin: 16px 0 8px 0;">
+        <label class="checkbox-label" style="font-size: 0.85rem; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+          <input type="checkbox" id="toggleCleared" onchange="toggleShowCleared()">
+          <span>Afficher les opérations déjà pointées</span>
+        </label>
+      </div>
+
+      <!-- Tableau des opérations du mois -->
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">Pointé</th>
+              <th style="width: 100px;">Date</th>
+              <th>Description / Catégorie</th>
+              <th style="text-align: right; width: 120px;">Montant</th>
+              <th style="width: 80px; text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="txTableBody"></tbody>
+        </table>
+      </div>
+
     </div>
 
-    <div class="table-container" style="margin-top: 16px;">
-      <table id="transactionsTable">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Catégorie</th>
-            <th>Compte</th>
-            <th style="text-align: right;">Montant</th>
-            <th style="text-align: center; width: 60px;">Pointé</th>
-            <th style="width: 40px;"></th>
-          </tr>
-        </thead>
-        <tbody id="transactionsTableBody"></tbody>
-      </table>
-    </div>
   </section>
 
   <!-- ================= ONGLET 3 : ÉTOILES & MISSIONS ================= -->
