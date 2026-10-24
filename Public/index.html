@@ -622,7 +622,22 @@
   </div>
 </div>
 
+<!-- ================= MODALE OPÉRATIONS RÉCURRENTES ================= -->
+<div class="modal-overlay" id="recurringModal" style="display: none;">
+  <div class="modal" style="width: 440px; max-height: 85vh; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;">Opérations récurrentes</h3>
+      <button type="button" class="btn-nav btn-small" onclick="closeRecurringModal()">✕</button>
+    </div>
 
+    <!-- Liste dynamique gérée par budget.js -->
+    <div id="recurringList" style="overflow-y: auto; max-height: 55vh; margin-bottom: 14px;"></div>
+
+    <div style="display: flex; justify-content: flex-end; margin-top: auto;">
+      <button type="button" class="btn-nav" onclick="closeRecurringModal()">Fermer</button>
+    </div>
+  </div>
+</div>
 
   <!-- ================= MODALE NOUVELLE / MODIFIER OPÉRATION ================= -->
 <div class="modal-overlay" id="txModal" style="display: none;">
