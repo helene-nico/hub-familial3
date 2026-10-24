@@ -330,6 +330,7 @@ window.addMission = function() {
   if (!title) return;
   const icon = prompt("Émoji :", "⭐") || "⭐";
   const points = parseInt(prompt("Points attribués :", "1"), 10) || 1;
+  const isRotating = confirm("Cette mission doit-elle tourner entre les enfants (chacun son tour) ?");
   state.missions.push({
     id: Date.now(),
     kidId: 0,
@@ -338,7 +339,7 @@ window.addMission = function() {
     points: points,
     minAge: null,
     maxAge: null,
-    isRotating: false
+    isRotating: isRotating
   });
   saveState();
 };
@@ -352,6 +353,8 @@ window.editMission = function(id) {
   if (icon !== null) m.icon = icon.trim();
   const pts = prompt("Points :", m.points);
   if (pts !== null) m.points = parseInt(pts, 10) || 1;
+  const isRotating = confirm("Cette mission doit-elle tourner entre les enfants (chacun son tour) ? Actuellement : " + (m.isRotating ? "Oui" : "Non"));
+  m.isRotating = isRotating;
   saveState();
 };
 
@@ -615,7 +618,7 @@ function renderKids() {
     if (configMissionsContainer) {
       configMissionsContainer.innerHTML = state.missions.map(m => `
         <div class="task-item">
-          <span>${m.icon} <b>${m.title}</b> (${m.points} ⭐)</span>
+          <span>${m.icon} <b>${m.title}</b> (${m.points} ⭐) ${m.isRotating ? '🔄 (Tourne)' : ''}</span>
           <div style="display:flex; gap:6px;">
             <button class="btn-nav btn-small" onclick="editMission(${m.id})">✏️</button>
             <button class="btn-danger btn-small" onclick="removeMission(${m.id})">✕</button>
