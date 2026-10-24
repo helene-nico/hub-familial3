@@ -940,3 +940,110 @@ input:checked + .slider:before {
     font-size: 0.72rem;
   }
 }
+
+/* ==========================================================================
+   ADAPTATIONS BUDGET (MOBILE & CHECKBOX)
+   ========================================================================== */
+
+/* Style des cases à cocher (dont "Afficher les opérations pointées") */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text);
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s ease;
+}
+
+.checkbox-label:hover {
+  border-color: var(--primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Conteneur de l'interrupteur au-dessus du tableau */
+.filter-cleared-container {
+  display: flex; 
+  justify-content: flex-end; 
+  align-items: center; 
+  margin: 16px 0 10px 0;
+}
+
+/* Tableau Responsive avec Scroll horizontal forcé */
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  -webkit-overflow-scrolling: touch; /* Défilement fluide sur iOS */
+  width: 100%;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.88rem;
+  min-width: 500px; /* Force une largeur minimum pour ne pas écraser les colonnes */
+}
+
+th, td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap; /* Empêche le texte de s'empiler dans les colonnes étroites */
+}
+
+/* Colonne Description libre */
+td:nth-child(3) {
+  white-space: normal; /* Autorise le retour à la ligne sur la description */
+  min-width: 150px;
+}
+
+/* Adaptation pour téléphones (< 600px) */
+@media (max-width: 600px) {
+  /* Le bouton s'étend sur toute la largeur sur mobile */
+  .filter-cleared-container {
+    justify-content: stretch;
+  }
+  
+  .filter-cleared-container .checkbox-label {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Ligne d'en-tête du détail d'un compte */
+  #budget-detail-view .accounts-overview-section {
+    padding: 8px !important;
+  }
+  
+  /* Sélecteur de mois ajusté */
+  #currentMonthLabel {
+    min-width: 100px !important;
+    font-size: 0.95rem !important;
+  }
+  
+  /* Cartes Solde Réel / Prévisionnel */
+  .grid-cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  
+  .card-value {
+    font-size: 1.25rem;
+  }
+  
+  .card-title {
+    font-size: 0.65rem;
+  }
+}
