@@ -45,47 +45,15 @@ window.activeKidId = (state.kids && state.kids.length > 0) ? state.kids[0].id : 
 window.isParentMode = false;
 window.parentCurrentSubpage = 'main';
 
-// --- SYNCHRONISATION SERVEUR DIRECTE (COMME BUDGET.JS) ---
-async function saveKidsToCloud() {
-  try {
-    await fetch('/api/store/family_rewards_app', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: state })
-    });
-  } catch (err) {
-    console.error("Erreur sauvegarde missions :", err);
+// Réception des données distantes par sync.js
+window.setKidsState = function(remoteState) {
+  if (remoteState && remoteState.kids && remoteState.kids.length > 0) {
+    state = remoteState;
+    window.kidsState = state;
+    renderKids();
+    if (typeof renderDashboard === "function") renderDashboard();
   }
-}
-
-async function syncKidsFromCloud() {
-  try {
-    const res = await fetch('/api/sync');
-    if (!res.ok) return;
-    const cloudData = await res.json();
-    if (cloudData && typeof cloudData === 'object') {
-      const raw = cloudData.family_rewards_app || cloudData.family_missions_state;
-      if (raw) {
-        const remoteState = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        if (remoteState && Array.isArray(remoteState.kids) && remoteState.kids.length > 0) {
-          state = remoteState;
-          window.kidsState = state;
-          const setter = (typeof originalSetItem === 'function') ? originalSetItem : localStorage.setItem.bind(localStorage);
-          setter("family_rewards_app", JSON.stringify(state));
-          setter("family_missions_state", JSON.stringify(state));
-          renderKids();
-          if (typeof renderDashboard === "function") renderDashboard();
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Erreur synchronisation missions :", err);
-  }
-}
-
-syncKidsFromCloud();
-window.addEventListener('focus', syncKidsFromCloud);
-setInterval(syncKidsFromCloud, 10000);
+};
 
 function getAge(birthDateStr) {
   if (!birthDateStr) return 0;
@@ -134,13 +102,10 @@ window.passMissionTurn = function(missionId) {
 };
 
 function saveState() {
-  const setter = (typeof originalSetItem === 'function') ? originalSetItem : localStorage.setItem.bind(localStorage);
-  setter("family_rewards_app", JSON.stringify(state));
-  setter("family_missions_state", JSON.stringify(state));
+  localStorage.setItem("family_rewards_app", JSON.stringify(state));
   window.kidsState = state;
   renderKids();
   if (typeof renderDashboard === "function") renderDashboard();
-  saveKidsToCloud();
 }
 window.saveKidsState = saveState;
 
