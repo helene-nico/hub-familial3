@@ -39,39 +39,53 @@ const defaultData = {
   pending: []
 };
 
-// Chargement de l'état avec synchronisation double clé pour app.js
-let state = JSON.parse(localStorage.getItem("family_rewards_app")) || JSON.parse(localStorage.getItem("family_missions_state"));
-
-if (!state || !state.kids || state.kids.length === 0) {
-  state = defaultData;
-  // Ne pas écraser Upstash tant que la synchronisation initiale n'a pas répondu
-  if (typeof originalSetItem === "function") {
-    originalSetItem("family_rewards_app", JSON.stringify(state));
-    originalSetItem("family_missions_state", JSON.stringify(state));
-  } else {
-    localStorage.setItem("family_rewards_app", JSON.stringify(state));
-    localStorage.setItem("family_missions_state", JSON.stringify(state));
-  }
-}
-
+let state = JSON.parse(localStorage.getItem("family_rewards_app")) || defaultData;
 window.kidsState = state;
 window.activeKidId = (state.kids && state.kids.length > 0) ? state.kids[0].id : null;
 window.isParentMode = false;
 window.parentCurrentSubpage = 'main';
 
-// Fonction appelée par sync.js dès que les données du serveur arrivent
-window.setKidsState = function(remoteState) {
-  if (remoteState && remoteState.kids && remoteState.kids.length > 0) {
-    state = remoteState;
-    window.kidsState = state;
-    if (typeof originalSetItem === "function") {
-      originalSetItem("family_rewards_app", JSON.stringify(state));
-      originalSetItem("family_missions_state", JSON.stringify(state));
-    }
-    renderKids();
-    if (typeof renderDashboard === "function") renderDashboard();
+// --- SYNCHRONISATION SERVEUR DIRECTE (COMME BUDGET.JS) ---
+async function saveKidsToCloud() {
+  try {
+    await fetch('/api/store/family_rewards_app', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: state })
+    });
+  } catch (err) {
+    console.error("Erreur sauvegarde missions :", err);
   }
-};
+}
+
+async function syncKidsFromCloud() {
+  try {
+    const res = await fetch('/api/sync');
+    if (!res.ok) return;
+    const cloudData = await res.json();
+    if (cloudData && typeof cloudData === 'object') {
+      const raw = cloudData.family_rewards_app || cloudData.family_missions_state;
+      if (raw) {
+        const remoteState = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (remoteState && Array.isArray(remoteState.kids) && remoteState.kids.length > 0) {
+          state = remoteState;
+          window.kidsState = state;
+          const setter = (typeof originalSetItem === 'function') ? originalSetItem : localStorage.setItem.bind(localStorage);
+          setter("family_rewards_app", JSON.stringify(state));
+          setter("family_missions_state", JSON.stringify(state));
+          renderKids();
+          if (typeof renderDashboard === "function") renderDashboard();
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Erreur synchronisation missions :", err);
+  }
+}
+
+syncKidsFromCloud();
+window.addEventListener('focus', syncKidsFromCloud);
+setInterval(syncKidsFromCloud, 10000);
 
 function getAge(birthDateStr) {
   if (!birthDateStr) return 0;
@@ -83,7 +97,6 @@ function getAge(birthDateStr) {
   return age;
 }
 
-// --- LOGIQUE DE GESTION DU TOUR DE RÔLE (ROTATION) ---
 function getEligibleKidsForMission(mission) {
   return (state.kids || []).filter(k => {
     if (k.present === false) return false;
@@ -121,11 +134,13 @@ window.passMissionTurn = function(missionId) {
 };
 
 function saveState() {
-  localStorage.setItem("family_rewards_app", JSON.stringify(state));
-  localStorage.setItem("family_missions_state", JSON.stringify(state));
+  const setter = (typeof originalSetItem === 'function') ? originalSetItem : localStorage.setItem.bind(localStorage);
+  setter("family_rewards_app", JSON.stringify(state));
+  setter("family_missions_state", JSON.stringify(state));
   window.kidsState = state;
   renderKids();
   if (typeof renderDashboard === "function") renderDashboard();
+  saveKidsToCloud();
 }
 window.saveKidsState = saveState;
 
@@ -164,7 +179,6 @@ window.submitMission = function(missionId) {
     points: mission.points
   });
 
-  // Dès qu'une tâche tournante est validée par l'enfant, le tour passe immédiatement au suivant !
   if (mission.isRotating) {
     advanceMissionTurn(mission.id);
   }
@@ -217,7 +231,6 @@ window.donateToCommon = function() {
   }
 };
 
-// --- GESTION DU CODE PIN ESPACE PARENTS ---
 window.openParentPinModal = function() {
   const modal = document.getElementById('parent-pin-modal');
   const input = document.getElementById('parent-pin-input');
@@ -259,7 +272,6 @@ window.exitParentMode = function() {
   renderKids();
 };
 
-// --- MODIFICATION DU CODE PIN PARENT ---
 window.openChangePinModal = function() {
   const modal = document.getElementById('change-pin-modal');
   const form = document.getElementById('changePinForm');
@@ -305,7 +317,6 @@ window.submitChangePin = function(e) {
   alert("Nouveau code PIN enregistré !");
 };
 
-// --- ACTIONS PARENTALES (VALIDATIONS, POINTS) ---
 window.validatePending = function(pendingId, approved) {
   const index = (state.pending || []).findIndex(p => String(p.id) === String(pendingId));
   if (index === -1) return;
@@ -345,7 +356,6 @@ window.togglePresence = function(kidId) {
   }
 };
 
-// --- GESTION PROFILS ENFANTS ---
 window.addKid = function() {
   const name = prompt("Prénom de l'enfant :");
   if (!name) return;
@@ -385,7 +395,6 @@ window.removeKid = function(id) {
   }
 };
 
-// --- GESTION MISSIONS & RÉCOMPENSES ---
 window.addMission = function() {
   const title = prompt("Intitulé de la mission :");
   if (!title) return;
@@ -462,7 +471,6 @@ window.removeReward = function(id) {
   }
 };
 
-// --- SOUS-PAGES DU MODE PARENT ---
 window.openParentDomainPage = function(page) {
   window.parentCurrentSubpage = page;
   showParentSubpage(page);
@@ -485,7 +493,6 @@ function showParentSubpage(page) {
   if (rewardsView) rewardsView.classList.toggle("hidden", page !== 'rewards');
 }
 
-// --- RENDU GRAPHIQUE GLOBAL ---
 function renderKids() {
   const parentView = document.getElementById("parent-view");
   const childView = document.getElementById("child-view");
@@ -496,7 +503,6 @@ function renderKids() {
     window.activeKidId = state.kids.length > 0 ? state.kids[0].id : null;
   }
 
-  // Vue Enfant
   if (!window.isParentMode) {
     const kidsBar = document.getElementById("kids-bar");
     if (kidsBar) {
@@ -637,7 +643,6 @@ function renderKids() {
       `).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucun cadeau familial.</p>`;
     }
   } else {
-    // Mode Parent
     const pendingContainer = document.getElementById("pending-list");
     if (pendingContainer) {
       if (!state.pending || state.pending.length === 0) {
