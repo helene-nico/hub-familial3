@@ -1,16 +1,12 @@
-// --- UTILITAIRES CRYPTO & SÉCURITÉ ---
-
-// Hachage SHA-256 via l'API Web Crypto native du navigateur
+// --- CRYPTO & PIN ---
 async function hashPin(pin) {
   if (!pin || pin.trim() === '') return '';
   const encoder = new TextEncoder();
   const data = encoder.encode(pin.trim());
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Vérifie un code PIN saisi face au format stocké
 async function verifyPin(inputPin, storedPin) {
   if (!storedPin) return true;
   if (/^[a-f0-9]{64}$/i.test(storedPin)) {
@@ -20,11 +16,10 @@ async function verifyPin(inputPin, storedPin) {
   return inputPin.trim() === storedPin.trim();
 }
 
-// Compteurs de protection anti-force brute
 let failedPinAttempts = 0;
 let lockoutUntil = 0;
 
-// --- DONNÉES UTILISATEURS ---
+// Chargement initial des utilisateurs
 let appUsers = JSON.parse(localStorage.getItem('app_users')) || [
   { id: 'u1', name: 'Papa', role: 'parent', pin: '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0', avatar: '👨' },
   { id: 'u2', name: 'Maman', role: 'parent', pin: '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0', avatar: '👩' },
@@ -34,14 +29,13 @@ let appUsers = JSON.parse(localStorage.getItem('app_users')) || [
 let currentUser = null;
 let pendingLoginUserId = null;
 
-// --- GESTION DE LA CONNEXION ---
+// --- CONNEXION ---
 function showLoginScreen() {
   const screen = document.getElementById('login-screen');
   const container = document.getElementById('app-container');
   if (screen) screen.style.display = 'flex';
   if (container) container.classList.add('hidden');
-  
-  // Recharger les utilisateurs depuis le localStorage
+
   appUsers = JSON.parse(localStorage.getItem('app_users')) || appUsers;
 
   const grid = document.getElementById('loginUsersGrid');
@@ -62,7 +56,7 @@ function attemptLogin(id) {
 
   if (Date.now() < lockoutUntil) {
     const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
-    alert(`Accès temporairement bloqué suite à des erreurs répétées. Réessayez dans ${remaining} s.`);
+    alert(`Accès temporairement bloqué. Réessaie dans ${remaining} s.`);
     return;
   }
 
@@ -89,7 +83,7 @@ function closeLoginPinModal() {
 async function submitLoginPin() {
   if (Date.now() < lockoutUntil) {
     const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
-    alert(`Accès temporairement bloqué. Réessayez dans ${remaining} s.`);
+    alert(`Accès temporairement bloqué. Réessaie dans ${remaining} s.`);
     return;
   }
 
@@ -105,6 +99,7 @@ async function submitLoginPin() {
     if (u.pin && !/^[a-f0-9]{64}$/i.test(u.pin)) {
       u.pin = await hashPin(enteredPin);
       localStorage.setItem('app_users', JSON.stringify(appUsers));
+      if (typeof window.saveToUpstash === 'function') window.saveToUpstash('app_users', appUsers);
     }
     closeLoginPinModal();
     loginAs(u);
@@ -112,10 +107,10 @@ async function submitLoginPin() {
     failedPinAttempts++;
     if (failedPinAttempts >= 5) {
       lockoutUntil = Date.now() + 30000;
-      alert("Trop de tentatives infructueuses. Verrouillage de sécurité pendant 30 secondes.");
+      alert("Trop d'erreurs. Verrouillage pendant 30 secondes.");
       closeLoginPinModal();
     } else {
-      alert(`Code PIN erroné. (Tentative ${failedPinAttempts}/5)`);
+      alert(`Code PIN erroné (${failedPinAttempts}/5).`);
       if (pinInput) {
         pinInput.value = '';
         pinInput.focus();
@@ -127,17 +122,17 @@ async function submitLoginPin() {
 function loginAs(user) {
   currentUser = user;
   sessionStorage.setItem('activeUserId', user.id);
-  
+
   const loginScr = document.getElementById('login-screen');
   const appCont = document.getElementById('app-container');
   if (loginScr) loginScr.style.display = 'none';
   if (appCont) appCont.classList.remove('hidden');
-  
+
   const topAvatar = document.getElementById('topAvatar');
   const topUserName = document.getElementById('topUserName');
   if (topAvatar) topAvatar.textContent = user.avatar || '👤';
   if (topUserName) topUserName.textContent = user.name;
-  
+
   const btnSettings = document.getElementById('btn-open-settings');
   const btnParent = document.getElementById('btn-parent-mode');
   if (btnSettings) btnSettings.style.display = 'inline-block';
@@ -156,14 +151,8 @@ function logout() {
   showLoginScreen();
 }
 
-// --- GESTION DES PROFILS (ADMINISTRATION) ---
+// --- GESTION DES PROFILS ---
 function openProfileEditModal(userId) {
-  if (currentUser && currentUser.role !== 'parent') {
-    alert("Seul un profil parent peut administrer les profils.");
-    return;
-  }
-
-  // Fermer la modale des paramètres généraux
   const generalModal = document.getElementById('generalSettingsModal');
   if (generalModal) generalModal.style.display = 'none';
 
@@ -217,11 +206,6 @@ window.closeProfileEditModal = () => {
 
 async function saveProfileEdit(e) {
   if (e && typeof e.preventDefault === 'function') e.preventDefault();
-  
-  if (currentUser && currentUser.role !== 'parent') {
-    alert("Action réservée aux parents.");
-    return;
-  }
 
   const idInput = document.getElementById('editUserId');
   const id = idInput ? idInput.value : '';
@@ -235,26 +219,18 @@ async function saveProfileEdit(e) {
   const rawPin = pinField ? pinField.value.trim() : '';
 
   if (!name) {
-    alert("Veuillez renseigner un prénom.");
+    alert("Prénom obligatoire.");
     return;
   }
 
-  // Recharger la liste actuelle pour éviter tout décalage
   appUsers = JSON.parse(localStorage.getItem('app_users')) || appUsers;
 
   if (id) {
-    // Modification d'un profil existant
     const u = appUsers.find(x => x.id === id);
     if (u) {
-      const parentCount = appUsers.filter(x => x.role === 'parent').length;
-      if (u.role === 'parent' && role !== 'parent' && parentCount <= 1) {
-        alert("L'application doit conserver au moins un parent.");
-        return;
-      }
       u.name = name;
       u.avatar = avatar;
       u.role = role;
-
       if (rawPin !== '' && rawPin !== '••••••••') {
         u.pin = await hashPin(rawPin);
       } else if (rawPin === '') {
@@ -262,7 +238,6 @@ async function saveProfileEdit(e) {
       }
     }
   } else {
-    // Création d'un NOUVEAU profil
     const hashedPin = rawPin ? await hashPin(rawPin) : '';
     const newUser = {
       id: 'u_' + Date.now(),
@@ -275,39 +250,43 @@ async function saveProfileEdit(e) {
     };
     appUsers.push(newUser);
 
-    // Synchronisation automatique : si c'est un enfant, on l'ajoute aussi dans le tableau de missions
-    if (role === 'child' && typeof window.kidsState !== 'undefined' && window.kidsState.kids) {
-      const exists = window.kidsState.kids.some(k => k.name.toLowerCase() === name.toLowerCase());
-      if (!exists) {
-        window.kidsState.kids.push({
-          id: Date.now(),
-          name: name,
-          birthDate: "2018-01-01",
-          avatar: avatar,
-          stars: 0,
-          lifetimeStars: 0,
-          present: true
-        });
-        if (typeof window.saveKidsState === 'function') window.saveKidsState();
+    // Ajout automatique dans les missions si profil enfant
+    if (role === 'child') {
+      let missionsState = JSON.parse(localStorage.getItem('family_rewards_app')) || (typeof kidsState !== 'undefined' ? kidsState : null);
+      if (missionsState && Array.isArray(missionsState.kids)) {
+        const alreadyExists = missionsState.kids.some(k => k.name.toLowerCase() === name.toLowerCase());
+        if (!alreadyExists) {
+          missionsState.kids.push({
+            id: Date.now(),
+            name: name,
+            birthDate: "2018-01-01",
+            avatar: avatar,
+            stars: 0,
+            lifetimeStars: 0,
+            present: true
+          });
+          localStorage.setItem('family_rewards_app', JSON.stringify(missionsState));
+          if (typeof window.saveToUpstash === 'function') window.saveToUpstash('family_rewards_app', missionsState);
+          if (typeof renderKids === 'function') renderKids();
+        }
       }
     }
   }
 
-  // Sauvegarde dans le stockage persistant
+  // Sauvegarde locale ET envoi immédiat sur Upstash
   localStorage.setItem('app_users', JSON.stringify(appUsers));
+  if (typeof window.saveToUpstash === 'function') {
+    await window.saveToUpstash('app_users', appUsers);
+  }
 
-  // Réinitialiser l'ID pour les prochaines créations
   if (idInput) idInput.value = '';
 
-  // Fermer la modale d'édition
   const editModal = document.getElementById('profileEditModal');
   if (editModal) editModal.style.display = 'none';
 
-  // Rafraîchir les affichages
   renderAppUsersList();
   showLoginScreen();
 
-  // Rouvrir les paramètres généraux
   if (typeof openGeneralSettingsModal === 'function') {
     openGeneralSettingsModal();
   }
@@ -333,23 +312,24 @@ function renderAppUsersList() {
   `).join('');
 }
 
-window.deleteAppUser = (id) => {
-  if (currentUser && currentUser.role !== 'parent') return;
+window.deleteAppUser = async (id) => {
   const target = appUsers.find(x => x.id === id);
   if (!target) return;
   if (target.role === 'parent' && appUsers.filter(x => x.role === 'parent').length <= 1) {
-    alert("Impossible de supprimer le seul profil parent.");
+    alert("Impossible de supprimer le seul parent restant.");
     return;
   }
-  if (confirm(`Supprimer définitivement le profil de ${target.name} ?`)) {
+  if (confirm(`Supprimer le profil de ${target.name} ?`)) {
     appUsers = appUsers.filter(x => x.id !== id);
     localStorage.setItem('app_users', JSON.stringify(appUsers));
+    if (typeof window.saveToUpstash === 'function') {
+      await window.saveToUpstash('app_users', appUsers);
+    }
     renderAppUsersList();
     showLoginScreen();
   }
 };
 
-// Exports globaux
 window.showLoginScreen = showLoginScreen;
 window.attemptLogin = attemptLogin;
 window.closeLoginPinModal = closeLoginPinModal;
