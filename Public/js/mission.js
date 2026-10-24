@@ -52,6 +52,7 @@ if (!state || !state.kids || state.kids.length === 0) {
     localStorage.setItem("family_missions_state", JSON.stringify(state));
   }
 }
+if (!state.completedToday) state.completedToday = [];
 
 window.kidsState = state;
 window.activeKidId = (state.kids && state.kids.length > 0) ? state.kids[0].id : null;
@@ -78,6 +79,7 @@ applyLocalPresence();
 window.setKidsState = function(remoteState) {
   if (remoteState && remoteState.kids && remoteState.kids.length > 0) {
     state = remoteState;
+    if (!state.completedToday) state.completedToday = [];
     applyLocalPresence(); // On force la présence locale sur l'état distant reçu
     window.kidsState = state;
     if (typeof originalSetItem === "function") {
@@ -747,15 +749,12 @@ function renderKids() {
           const currentKid = getMissionTurnKid(m);
           if (!currentKid || String(currentKid.id) !== String(window.activeKidId)) return false;
         }
-        const isDailyOrder = m.isDailyOrder || (m.title && (m.title.toLowerCase().includes('douche') || m.title.toLowerCase().includes('bain')));
-        if (isDailyOrder) {
-          const isDoneToday = (state.completedToday || []).some(c => 
-            String(c.missionId) === String(m.id) && 
-            String(c.kidId) === String(window.activeKidId) && 
-            c.date === todayKey
-          );
-          if (isDoneToday) return false;
-        }
+        const isDoneToday = (state.completedToday || []).some(c => 
+          String(c.missionId) === String(m.id) && 
+          (m.isRotating ? true : String(c.kidId) === String(window.activeKidId)) && 
+          c.date === todayKey
+        );
+        if (isDoneToday) return false;
         return true;
       });
 
