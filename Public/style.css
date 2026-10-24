@@ -252,7 +252,6 @@ body {
   display: grid !important;
   grid-template-columns: repeat(2, 1fr) !important;
   gap: 12px !important;
-  margin-top: 10px;
 }
 
 .dash-widget {
@@ -590,7 +589,7 @@ input, select, textarea {
 }
 
 /* ==========================================================================
-   MODULE REPAS & MENUS (INTACT)
+   MODULE REPAS & MENUS
    ========================================================================== */
 .meals-grid {
   display: grid;
@@ -631,6 +630,23 @@ input, select, textarea {
   gap: 6px;
 }
 
+body.light-mode .meal-slot-box {
+  background: #f1f5f9;
+}
+
+.meal-slot-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+}
+.meal-slot-label.slot-midi { color: #f59e0b; }
+.meal-slot-label.slot-soir { color: #818cf8; }
+
 .meal-slot-content {
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -652,56 +668,6 @@ input, select, textarea {
   background: var(--surface);
   border: 1px solid var(--border);
   padding: 10px 12px;
-}
-
-/* ==========================================================================
-   OPTIMISATIONS SPÉCIFIQUES SMARTPHONE (< 600PX)
-   ========================================================================== */
-@media (max-width: 600px) {
-  body {
-    padding: 8px;
-  }
-
-  .top-bar {
-    padding: 8px 10px;
-  }
-
-  .dash-widget {
-    flex-direction: column !important;
-    text-align: center;
-    padding: 12px 6px !important;
-  }
-
-  .dash-widget-icon {
-    margin-right: 0 !important;
-    margin-bottom: 4px;
-    font-size: 1.6rem !important;
-  }
-
-  .dash-widget-title {
-    font-size: 0.82rem !important;
-  }
-
-  .kids-subtabs-nav {
-    gap: 4px;
-  }
-
-  .kids-subtab-btn {
-    font-size: 0.78rem;
-    padding: 8px 4px;
-  }
-
-  .task-item {
-    padding: 10px;
-  }
-
-  .task-title {
-    font-size: 0.88rem;
-  }
-
-  .modal {
-    padding: 16px;
-  }
 }
 
 /* ==========================================================================
@@ -889,33 +855,87 @@ input:checked + .slider:before {
   transform: translateX(20px);
 }
 
-/* Ajustements Smartphone (< 480px) */
-@media (max-width: 480px) {
+/* ==========================================================================
+   OPTIMISATIONS SPÉCIFIQUES SMARTPHONE (< 600PX)
+   ========================================================================== */
+@media (max-width: 600px) {
+  body {
+    padding: 8px;
+  }
+
+  .top-bar {
+    padding: 8px 10px;
+  }
+
+  .dash-widget {
+    flex-direction: column !important;
+    text-align: center;
+    padding: 12px 6px !important;
+  }
+
+  .dash-widget-icon {
+    margin-right: 0 !important;
+    margin-bottom: 4px;
+    font-size: 1.6rem !important;
+  }
+
+  .dash-widget-title {
+    font-size: 0.82rem !important;
+  }
+
+  .kids-subtabs-nav {
+    gap: 4px;
+  }
+
+  .kids-subtab-btn {
+    font-size: 0.78rem;
+    padding: 8px 4px;
+  }
+
+  .task-item {
+    padding: 10px;
+  }
+
+  .task-title {
+    font-size: 0.88rem;
+  }
+
+  .modal {
+    padding: 16px;
+  }
+
   .dashboard-header {
     margin-bottom: 14px;
   }
+  
   .dashboard-title {
     font-size: 1.15rem;
   }
+  
   .btn-customize {
     padding: 6px 12px;
     font-size: 0.8rem;
     gap: 5px;
   }
+  
   .modal-custom-dash {
     width: 94% !important;
     max-width: 94% !important;
     padding: 18px 14px !important;
   }
+  
   .custom-card-item {
     padding: 10px 12px;
   }
+  
   .custom-card-icon {
     font-size: 1.4rem;
   }
+  
   .custom-card-title {
     font-size: 0.9rem;
   }
+  
   .custom-card-desc {
     font-size: 0.72rem;
   }
