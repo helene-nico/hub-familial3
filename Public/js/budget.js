@@ -1,48 +1,33 @@
-// --- SYNCHRONISATION AVEC UPSTASH (RENDER) ---
+// --- SYNCHRONISATION AVEC UPSTASH (DÉLÉGUÉE À SYNC.JS) ---
 async function saveToCloud(key, value) {
-  try {
-    await fetch(`/api/store/${key}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value })
-    });
-  } catch (err) {
-    console.error(`Erreur sauvegarde cloud (${key}) :`, err);
+  if (typeof window.saveToUpstash === 'function') {
+    window.saveToUpstash(key, value);
   }
 }
 
 async function deleteFromCloud(key) {
   try {
-    await fetch(`/api/store/${key}`, { method: 'DELETE' });
+    await fetch(`/api/store/${encodeURIComponent(key)}`, { method: 'DELETE' });
   } catch (err) {
-    console.error(`Erreur suppression cloud (${key}) :`, err);
+    console.error(`Erreur suppression (${key}) :`, err);
   }
 }
 
-async function syncFromCloud() {
-  try {
-    const res = await fetch('/api/sync');
-    if (!res.ok) return;
-    const cloudData = await res.json();
+// Rafraîchissement direct de l'affichage local sans requêtes superflues
+function refreshBudgetDisplay() {
+  const storedAccs = localStorage.getItem('bank_accounts');
+  if (storedAccs) {
+    try { bankAccounts = JSON.parse(storedAccs); } catch (e) {}
+  }
+  renderAccountsCards();
+  if (currentAccountId) {
+    loadCurrentAccountData();
+  }
+}
 
-    if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
-      // 1. Mettre à jour le localStorage avec les données du serveur
-      Object.keys(cloudData).forEach(key => {
-        const val = cloudData[key];
-        localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
-      });
+window.addEventListener('focus', refreshBudgetDisplay);
 
-      // 2. Mettre à jour la variable en mémoire pour les comptes
-      if (cloudData.bank_accounts) {
-        bankAccounts = typeof cloudData.bank_accounts === 'string'
-          ? JSON.parse(cloudData.bank_accounts)
-          : cloudData.bank_accounts;
-      }
-
-      // 3. Rafraîchir l'interface
-      renderAccountsCards();
-      if (currentAccountId) {
-        loadCurrentAccountData();
+// --- DONNÉES FINANCIÈRES ---
       }
     } else {
       // Si la base Upstash est encore vide, on initialise avec les comptes par défaut
