@@ -65,15 +65,27 @@ window.syncFromUpstash = async function() {
       if (remoteData.family_rewards_app || remoteData.family_missions_state) {
         const missionsRaw = remoteData.family_rewards_app || remoteData.family_missions_state;
         const parsedMissions = typeof missionsRaw === 'string' ? JSON.parse(missionsRaw) : missionsRaw;
+        
         if (typeof window.setKidsState === 'function') {
           window.setKidsState(parsedMissions);
+        } else if (typeof window.syncKidsFromCloud === 'function') {
+          window.syncKidsFromCloud();
         } else {
           window.kidsState = parsedMissions;
           if (typeof renderKids === 'function') renderKids();
         }
       }
 
-      // 4. Mise à jour des repas
+      // 4. Mise à jour des comptes (Budget)
+      if (remoteData.bank_accounts && typeof bankAccounts !== 'undefined') {
+        bankAccounts = typeof remoteData.bank_accounts === 'string' ? JSON.parse(remoteData.bank_accounts) : remoteData.bank_accounts;
+        if (typeof renderAccountsCards === 'function') renderAccountsCards();
+        if (typeof currentAccountId !== 'undefined' && currentAccountId && typeof loadCurrentAccountData === 'function') {
+          loadCurrentAccountData();
+        }
+      }
+
+      // 5. Mise à jour des repas
       if (remoteData.weekly_meals_plan) {
         const mealsRaw = remoteData.weekly_meals_plan;
         const parsedMeals = typeof mealsRaw === 'string' ? JSON.parse(mealsRaw) : mealsRaw;
@@ -85,7 +97,7 @@ window.syncFromUpstash = async function() {
         }
       }
 
-      // 5. Rafraîchissement du tableau de bord
+      // 6. Rafraîchissement du tableau de bord
       if (typeof renderDashboard === 'function' && currentUser) {
         renderDashboard();
       }
@@ -98,7 +110,7 @@ window.syncFromUpstash = async function() {
 // Synchronisation immédiate au chargement
 window.syncFromUpstash();
 
-// Synchronisation quand on change d'application ou d'onglet
+// Synchronisation au retour sur l'onglet ou l'application
 window.addEventListener('focus', () => window.syncFromUpstash());
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') window.syncFromUpstash();
@@ -106,4 +118,3 @@ document.addEventListener('visibilitychange', () => {
 
 // Synchronisation d'arrière-plan toutes les 15 secondes
 setInterval(() => window.syncFromUpstash(), 15000);
-```[cite: 21]
