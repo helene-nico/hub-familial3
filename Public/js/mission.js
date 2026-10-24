@@ -40,20 +40,53 @@ const defaultData = {
 };
 
 let state = JSON.parse(localStorage.getItem("family_rewards_app")) || defaultData;
+
+if (!state || !state.kids || state.kids.length === 0) {
+  state = defaultData;
+  if (typeof originalSetItem === "function") {
+    originalSetItem("family_rewards_app", JSON.stringify(state));
+    originalSetItem("family_missions_state", JSON.stringify(state));
+  } else {
+    localStorage.setItem("family_rewards_app", JSON.stringify(state));
+    localStorage.setItem("family_missions_state", JSON.stringify(state));
+  }
+}
+
 window.kidsState = state;
 window.activeKidId = (state.kids && state.kids.length > 0) ? state.kids[0].id : null;
 window.isParentMode = false;
 window.parentCurrentSubpage = 'main';
 
-// Réception des données distantes par sync.js
+// --- RÉCEPTION CLOUD EN DIRECT ---
 window.setKidsState = function(remoteState) {
   if (remoteState && remoteState.kids && remoteState.kids.length > 0) {
     state = remoteState;
     window.kidsState = state;
+    if (typeof originalSetItem === "function") {
+      originalSetItem("family_rewards_app", JSON.stringify(state));
+      originalSetItem("family_missions_state", JSON.stringify(state));
+    }
     renderKids();
     if (typeof renderDashboard === "function") renderDashboard();
   }
 };
+
+// --- SAUVEGARDE ET ENVOI ---
+function saveState() {
+  const setter = (typeof originalSetItem === 'function') ? originalSetItem : localStorage.setItem.bind(localStorage);
+  setter("family_rewards_app", JSON.stringify(state));
+  setter("family_missions_state", JSON.stringify(state));
+  window.kidsState = state;
+  renderKids();
+  if (typeof renderDashboard === "function") renderDashboard();
+  
+  // Envoi vers le serveur via sync.js s'il est là
+  if (typeof window.saveToUpstash === 'function') {
+    window.saveToUpstash('family_rewards_app', state);
+  }
+}
+window.saveKidsState = saveState;
+
 
 function getAge(birthDateStr) {
   if (!birthDateStr) return 0;
@@ -65,6 +98,7 @@ function getAge(birthDateStr) {
   return age;
 }
 
+// --- LOGIQUE DE ROTATION ---
 function getEligibleKidsForMission(mission) {
   return (state.kids || []).filter(k => {
     if (k.present === false) return false;
@@ -101,13 +135,6 @@ window.passMissionTurn = function(missionId) {
   saveState();
 };
 
-function saveState() {
-  localStorage.setItem("family_rewards_app", JSON.stringify(state));
-  window.kidsState = state;
-  renderKids();
-  if (typeof renderDashboard === "function") renderDashboard();
-}
-window.saveKidsState = saveState;
 
 window.selectKid = function(id) {
   window.activeKidId = id;
@@ -130,14 +157,24 @@ window.switchKidSubTab = function(tab) {
   if (scoreCard) scoreCard.classList.toggle("hidden", tab === "family");
 };
 
+// --- VALIDATION ENFANT ---
 window.submitMission = function(missionId) {
   const mission = state.missions.find(m => String(m.id) === String(missionId));
   const kid = state.kids.find(k => String(k.id) === String(window.activeKidId));
   if (!mission || !kid) return;
 
   if (!state.pending) state.pending = [];
+  
+  // Vérifie si la tâche est déjà en attente
+  const alreadyPending = state.pending.some(p => String(p.missionId) === String(mission.id) && String(p.kidId) === String(kid.id));
+  if (alreadyPending) {
+    alert("Cette mission est déjà en attente de validation par les parents !");
+    return;
+  }
+
   state.pending.push({
     id: Date.now(),
+    missionId: mission.id,
     kidId: kid.id,
     kidName: kid.name,
     title: mission.title,
@@ -282,6 +319,7 @@ window.submitChangePin = function(e) {
   alert("Nouveau code PIN enregistré !");
 };
 
+// --- VALIDATION PARENTALE ---
 window.validatePending = function(pendingId, approved) {
   const index = (state.pending || []).findIndex(p => String(p.id) === String(pendingId));
   if (index === -1) return;
@@ -458,6 +496,7 @@ function showParentSubpage(page) {
   if (rewardsView) rewardsView.classList.toggle("hidden", page !== 'rewards');
 }
 
+// --- AFFICHAGE GLOBAL ---
 function renderKids() {
   const parentView = document.getElementById("parent-view");
   const childView = document.getElementById("child-view");
@@ -468,6 +507,7 @@ function renderKids() {
     window.activeKidId = state.kids.length > 0 ? state.kids[0].id : null;
   }
 
+  // --- VUE ENFANT ---
   if (!window.isParentMode) {
     const kidsBar = document.getElementById("kids-bar");
     if (kidsBar) {
@@ -513,6 +553,12 @@ function renderKids() {
       const missionsContainer = document.getElementById("tab-missions-sub");
       if (missionsContainer) {
         missionsContainer.innerHTML = kidMissions.map(m => {
+          // Vérifie si l'enfant a déjà validé cette tâche et si elle est en attente
+          const isPending = state.pending && state.pending.some(p => String(p.missionId) === String(m.id) && String(p.kidId) === String(window.activeKidId));
+          const btnHtml = isPending 
+            ? '<span class="badge" style="background:var(--surface); color:var(--yellow); font-size:0.8rem; padding:6px 10px;">⏳ En attente</span>'
+            : `<button class="btn-primary btn-small" onclick="submitMission(${m.id})">Fait !</button>`;
+
           if (m.isRotating) {
             const currentKid = getMissionTurnKid(m);
             const isMyTurn = currentKid && String(currentKid.id) === String(window.activeKidId);
@@ -530,7 +576,7 @@ function renderKids() {
                       <div class="task-reward">+${m.points} ⭐</div>
                     </div>
                   </div>
-                  <button class="btn-primary btn-small" onclick="submitMission(${m.id})">Fait !</button>
+                  ${btnHtml}
                 </div>
               `;
             } else {
@@ -560,7 +606,7 @@ function renderKids() {
                   <div class="task-reward">+${m.points} ⭐</div>
                 </div>
               </div>
-              <button class="btn-primary btn-small" onclick="submitMission(${m.id})">Fait !</button>
+              ${btnHtml}
             </div>
           `;
         }).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucune tâche pour aujourd'hui.</p>`;
@@ -608,16 +654,17 @@ function renderKids() {
       `).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucun cadeau familial.</p>`;
     }
   } else {
+    // --- VUE PARENT ---
     const pendingContainer = document.getElementById("pending-list");
     if (pendingContainer) {
       if (!state.pending || state.pending.length === 0) {
-        pendingContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.88rem;">Aucune tâche en attente de validation.</p>`;
+        pendingContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.88rem; text-align:center; padding: 10px;">✅ Aucune tâche en attente.</p>`;
       } else {
         pendingContainer.innerHTML = state.pending.map(p => `
-          <div class="task-item">
+          <div class="task-item" style="border-left: 4px solid var(--yellow);">
             <div>
               <b>${p.kidName}</b> : ${p.title}
-              <div style="font-size: 0.8rem; color: var(--yellow);">+${p.points} étoile(s)</div>
+              <div style="font-size: 0.8rem; color: var(--yellow); font-weight: bold;">+${p.points} étoile(s)</div>
             </div>
             <div style="display:flex; gap:6px;">
               <button class="btn-primary btn-small" onclick="validatePending(${p.id}, true)">✔ Valider</button>
