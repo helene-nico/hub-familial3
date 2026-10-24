@@ -740,6 +740,115 @@
   </div>
 </div>
 
+  <!-- ================= MODALE GESTION MISSION (FORMULAIRE UNIQUE) ================= -->
+<div class="modal-overlay" id="missionModal" style="display: none;">
+  <div class="modal" style="width: 420px; max-height: 88vh;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h3 id="missionModalTitle" style="margin: 0; font-size: 1.15rem; font-weight: 800;">Nouvelle mission</h3>
+      <button type="button" class="btn-nav btn-small" onclick="closeMissionModal()">✕</button>
+    </div>
+
+    <form id="missionForm" class="form-vertical" onsubmit="saveMissionForm(event)" style="gap: 12px;">
+      <input type="hidden" id="editMissionId">
+
+      <div style="display: flex; gap: 10px;">
+        <div style="width: 70px;">
+          <label style="font-size: 0.8rem;">Émoji</label>
+          <input type="text" id="missionFormIcon" maxlength="4" style="text-align: center; font-size: 1.3rem;" value="⭐" required>
+        </div>
+        <div style="flex: 1;">
+          <label style="font-size: 0.8rem;">Intitulé de la mission</label>
+          <input type="text" id="missionFormTitle" placeholder="Ex: Ranger sa chambre" required>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <div style="flex: 1;">
+          <label style="font-size: 0.8rem;">Étoiles (⭐)</label>
+          <input type="number" id="missionFormPoints" min="1" max="100" value="1" required>
+        </div>
+        <div style="flex: 1;">
+          <label style="font-size: 0.8rem;">Attribuée à</label>
+          <select id="missionFormKidId">
+            <option value="0">Tous les enfants</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tranche d'âge -->
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px;">
+        <label style="font-size: 0.82rem; font-weight: 700; margin-bottom: 6px; display: block;">🎯 Tranche d'âge (optionnel)</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Âge min (ans)</label>
+            <input type="number" id="missionFormMinAge" min="1" max="25" placeholder="Dès... (ou vide)">
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Âge max (ans)</label>
+            <input type="number" id="missionFormMaxAge" min="1" max="25" placeholder="Jusqu'à... (ou vide)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Mission tournante -->
+      <label style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
+        <div>
+          <div style="font-size: 0.88rem; font-weight: 700;">🔄 Mission tournante</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">Les enfants la font chacun leur tour</div>
+        </div>
+        <input type="checkbox" id="missionFormRotating" style="width: 20px; height: 20px; accent-color: var(--primary); margin: 0;">
+      </label>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+        <button type="button" class="btn-nav" onclick="closeMissionModal()">Annuler</button>
+        <button type="submit" class="btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ================= MODALE GESTION RÉCOMPENSE (FORMULAIRE UNIQUE) ================= -->
+<div class="modal-overlay" id="rewardModal" style="display: none;">
+  <div class="modal" style="width: 380px; max-height: 85vh;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h3 id="rewardModalTitle" style="margin: 0; font-size: 1.15rem; font-weight: 800;">Nouvelle récompense</h3>
+      <button type="button" class="btn-nav btn-small" onclick="closeRewardModal()">✕</button>
+    </div>
+
+    <form id="rewardForm" class="form-vertical" onsubmit="saveRewardForm(event)" style="gap: 12px;">
+      <input type="hidden" id="editRewardId">
+
+      <div style="display: flex; gap: 10px;">
+        <div style="width: 70px;">
+          <label style="font-size: 0.8rem;">Émoji</label>
+          <input type="text" id="rewardFormIcon" maxlength="4" style="text-align: center; font-size: 1.3rem;" value="🎁" required>
+        </div>
+        <div style="flex: 1;">
+          <label style="font-size: 0.8rem;">Intitulé du cadeau</label>
+          <input type="text" id="rewardFormTitle" placeholder="Ex: Histoire supplémentaire" required>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size: 0.8rem;">Coût en étoiles (⭐)</label>
+        <input type="number" id="rewardFormCost" min="1" max="500" value="5" required>
+      </div>
+
+      <div>
+        <label style="font-size: 0.8rem;">Type de récompense</label>
+        <select id="rewardFormType">
+          <option value="solo">🎁 Individuelle (Boutique de l'enfant)</option>
+          <option value="common">👨‍👩‍👧‍👦 Collective (Cagnotte famille)</option>
+        </select>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+        <button type="button" class="btn-nav" onclick="closeRewardModal()">Annuler</button>
+        <button type="submit" class="btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
 <!-- ================= SCRIPTS ================= -->
 <script src="js/sync.js"></script>
 <script src="js/auth.js"></script>
