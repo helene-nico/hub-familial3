@@ -379,11 +379,22 @@ window.toggleClear = (id) => {
 };
 
 window.deleteTx = (id) => {
-  if (confirm("Supprimer cette opération ?")) {
+  const tx = transactions.find(t => t.id === id);
+  if (!tx) return;
+
+  if (tx.recurringId) {
+    const choice = confirm("Cette opération est récurrente.\n\nOK : Supprimer l'opération ET arrêter la récurrence.\nAnnuler : Ne rien faire.");
+    if (!choice) return;
+    recurringRules = recurringRules.filter(r => r.id !== tx.recurringId);
+    // Supprime aussi les autres opérations non pointées de cette récurrence (optionnel mais plus cohérent)
+    transactions = transactions.filter(t => t.recurringId !== tx.recurringId || t.cleared === true);
+  } else {
+    if (!confirm("Supprimer cette opération ?")) return;
     transactions = transactions.filter(t => t.id !== id);
-    saveBudgetData();
-    loadCurrentAccountData();
   }
+
+  saveBudgetData();
+  loadCurrentAccountData();
 };
 
 window.toggleShowCleared = () => {
@@ -655,18 +666,51 @@ function renderRecurringList() {
             Le ${r.day} du mois • <span class="${r.type === 'income' ? 'positive' : 'negative'}">${r.type === 'income' ? '+' : '-'}${formatMoney(r.amount)}</span> ${cName ? '('+cName+')' : ''}
           </div>
         </div>
-        <button class="btn-danger" onclick="deleteRecurringRule('${r.id}')">✕</button>
+        <div style="display:flex; gap:6px;">
+          <button class="btn-nav" onclick="editRecurringRuleAmount('${r.id}')" title="Modifier le montant">✏️</button>
+          <button class="btn-danger" onclick="deleteRecurringRule('${r.id}')" title="Supprimer">✕</button>
+        </div>
       </div>
     `;
   }).join('');
 }
 
 window.deleteRecurringRule = (id) => {
-  if (confirm("Supprimer cette récurrence ? Les opérations futures ne seront plus créées (les anciennes sont conservées).")) {
+  if (confirm("Supprimer cette récurrence ?\n\nToutes les opérations non pointées liées seront également supprimées.")) {
     recurringRules = recurringRules.filter(r => r.id !== id);
+    // Supprimer toutes les opérations générées par cette récurrence qui ne sont pas encore pointées
+    transactions = transactions.filter(t => t.recurringId !== id || t.cleared === true);
     saveBudgetData();
     renderRecurringList();
+    loadCurrentAccountData();
   }
+};
+
+window.editRecurringRuleAmount = (id) => {
+  const rule = recurringRules.find(r => r.id === id);
+  if (!rule) return;
+  
+  const newAmountStr = prompt(`Modifier le montant pour "${rule.title}" (€) :\n(Les opérations non pointées de ce mois seront mises à jour)`, rule.amount);
+  if (newAmountStr === null) return;
+  
+  const newAmount = parseFloat(newAmountStr.replace(',', '.'));
+  if (isNaN(newAmount) || newAmount <= 0) {
+    alert("Montant invalide.");
+    return;
+  }
+  
+  rule.amount = newAmount;
+  
+  // Met aussi à jour les opérations mensuelles non pointées correspondantes
+  transactions.forEach(t => {
+    if (t.recurringId === id && !t.cleared) {
+      t.amount = newAmount;
+    }
+  });
+  
+  saveBudgetData();
+  renderRecurringList();
+  loadCurrentAccountData();
 };
 
 /* --- SOUMISSION DE L'OPÉRATION (AJOUT OU MODIFICATION) --- */
