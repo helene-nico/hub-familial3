@@ -55,9 +55,12 @@
 
   <!-- ================= ONGLET 1 : TABLEAU DE BORD (ACCUEIL) ================= -->
   <section id="tab-dashboard" class="tab-content active">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h2 style="font-size: 1.4rem; margin: 0; font-weight: 800;">Tableau de bord</h2>
-      <button class="btn-nav" onclick="openDashboardCustomModal()" style="font-size: 0.85rem;">🎨 Personnaliser</button>
+    <div class="dashboard-header">
+      <h2 class="dashboard-title">Tableau de bord</h2>
+      <button class="btn-customize" onclick="openDashboardCustomModal()" title="Personnaliser les tuiles">
+        <span class="btn-customize-icon">🎨</span>
+        <span class="btn-customize-text">Personnaliser</span>
+      </button>
     </div>
 
     <div class="dashboard-grid">
@@ -67,7 +70,7 @@
         <span class="dash-widget-title">Budget</span>
       </div>
 
-     <!-- Tuile Menus -->
+      <!-- Tuile Menus -->
       <div class="dash-widget" id="widget-meals" onclick="switchMainTab('meals')">
         <span class="dash-widget-icon">🍽️</span>
         <span class="dash-widget-title">Menus &amp; Recettes</span>
@@ -567,13 +570,24 @@
 </div>
 
 <!-- ================= MODALE PERSONNALISER L'ACCUEIL ================= -->
-<div class="modal-overlay" id="dashboardCustomModal">
-  <div class="modal" style="width: 380px;">
-    <h3 style="margin: 0 0 12px 0;">🎨 Personnaliser l'accueil</h3>
-    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Sélectionnez les tuiles à afficher :</p>
-    <div id="dashCustomCheckboxes" class="form-vertical" style="gap: 10px;"></div>
-    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
-      <button class="btn-nav" onclick="closeDashboardCustomModal()">Fermer</button>
+<div class="modal-overlay" id="dashboardCustomModal" style="display: none;">
+  <div class="modal modal-custom-dash">
+    <div class="modal-header-clean">
+      <div>
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;">🎨 Personnaliser l'accueil</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 3px 0 0 0;">
+          Active ou masque les tuiles du tableau de bord
+        </p>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="closeDashboardCustomModal()" aria-label="Fermer">✕</button>
+    </div>
+
+    <div id="dashCustomCards" class="dash-custom-list"></div>
+
+    <div class="modal-footer-clean">
+      <button type="button" class="btn-primary" style="width: 100%; justify-content: center;" onclick="closeDashboardCustomModal()">
+        Terminé
+      </button>
     </div>
   </div>
 </div>
