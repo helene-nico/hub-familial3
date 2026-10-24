@@ -98,6 +98,24 @@ function getAge(birthDateStr) {
   return age;
 }
 
+
+// --- GESTION DE L'ORDRE QUOTIDIEN (1er, 2ème...) ---
+function getKidDailyOrder(kidId, eligibleKids) {
+  if (!eligibleKids || eligibleKids.length === 0) return 0;
+  const epoch = new Date("2024-01-01").getTime();
+  const now = new Date();
+  now.setHours(now.getHours() - 4); // Ne change qu'à partir de 4h du matin
+  const daysPassed = Math.floor((now.getTime() - epoch) / (1000 * 60 * 60 * 24));
+  const kidIndex = eligibleKids.findIndex(k => String(k.id) === String(kidId));
+  if (kidIndex === -1) return 0;
+  return ((kidIndex + daysPassed) % eligibleKids.length) + 1;
+}
+
+function getOrderLabel(rank) {
+  if (rank === 1) return "1er";
+  return rank + "ème";
+}
+
 // --- LOGIQUE DE ROTATION ---
 function getEligibleKidsForMission(mission) {
   return (state.kids || []).filter(k => {
@@ -137,7 +155,6 @@ window.passMissionTurn = function(missionId) {
 
 
 window.selectKid = function(id) {
-  // Sécurité : empêche un enfant de changer de profil
   if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'child') {
     return;
   }
@@ -402,6 +419,7 @@ window.removeKid = function(id) {
   }
 };
 
+
 /* --- GESTION DE LA MODALE MISSION --- */
 window.openMissionModal = function(id = null) {
   const modal = document.getElementById("missionModal");
@@ -412,7 +430,6 @@ window.openMissionModal = function(id = null) {
   const titleEl = document.getElementById("missionModalTitle");
   const editIdEl = document.getElementById("editMissionId");
 
-  // Remplissage du sélecteur d'enfant
   const kidSelect = document.getElementById("missionFormKidId");
   if (kidSelect) {
     kidSelect.innerHTML = '<option value="0">Tous les enfants</option>' + 
@@ -432,6 +449,7 @@ window.openMissionModal = function(id = null) {
     document.getElementById("missionFormMinAge").value = (m.minAge !== null && m.minAge !== undefined) ? m.minAge : "";
     document.getElementById("missionFormMaxAge").value = (m.maxAge !== null && m.maxAge !== undefined) ? m.maxAge : "";
     document.getElementById("missionFormRotating").checked = !!m.isRotating;
+    document.getElementById("missionFormDailyOrder").checked = !!m.isDailyOrder;
   } else {
     if (titleEl) titleEl.textContent = "Nouvelle mission";
     if (editIdEl) editIdEl.value = "";
@@ -441,6 +459,7 @@ window.openMissionModal = function(id = null) {
     document.getElementById("missionFormMinAge").value = "";
     document.getElementById("missionFormMaxAge").value = "";
     document.getElementById("missionFormRotating").checked = false;
+    document.getElementById("missionFormDailyOrder").checked = false;
   }
 
   modal.style.display = "flex";
@@ -464,6 +483,7 @@ window.saveMissionForm = function(e) {
   const minAge = minAgeVal !== "" && !isNaN(parseInt(minAgeVal, 10)) ? parseInt(minAgeVal, 10) : null;
   const maxAge = maxAgeVal !== "" && !isNaN(parseInt(maxAgeVal, 10)) ? parseInt(maxAgeVal, 10) : null;
   const isRotating = document.getElementById("missionFormRotating")?.checked || false;
+  const isDailyOrder = document.getElementById("missionFormDailyOrder")?.checked || false;
 
   if (!title) return;
 
@@ -477,6 +497,7 @@ window.saveMissionForm = function(e) {
       m.minAge = minAge;
       m.maxAge = maxAge;
       m.isRotating = isRotating;
+      m.isDailyOrder = isDailyOrder;
     }
   } else {
     state.missions.push({
@@ -488,6 +509,7 @@ window.saveMissionForm = function(e) {
       minAge: minAge,
       maxAge: maxAge,
       isRotating: isRotating,
+      isDailyOrder: isDailyOrder,
       currentKidId: null
     });
   }
@@ -584,6 +606,7 @@ window.removeReward = function(id) {
   }
 };
 
+
 window.openParentDomainPage = function(page) {
   window.parentCurrentSubpage = page;
   showParentSubpage(page);
@@ -613,7 +636,7 @@ function renderKids() {
   if (parentView) parentView.classList.toggle("hidden", !window.isParentMode);
   if (childView) childView.classList.toggle("hidden", window.isParentMode);
 
-  // 1. Liaison automatique avec le profil connecté
+  // Verrouillage de l'enfant connecté
   const isChild = (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'child');
   if (isChild && currentUser.name) {
     const childName = currentUser.name.trim().toLowerCase();
@@ -633,10 +656,8 @@ function renderKids() {
     const kidsBar = document.getElementById("kids-bar");
     if (kidsBar) {
       if (isChild) {
-        // Masque la barre d'onglets pour que l'enfant ne voie pas ses frères et sœurs
         kidsBar.style.display = "none";
       } else {
-        // Affiche tous les enfants pour les parents
         kidsBar.style.display = "flex";
         kidsBar.innerHTML = state.kids.map(kid => {
           const age = getAge(kid.birthDate);
@@ -671,12 +692,10 @@ function renderKids() {
       if (xpEl) xpEl.textContent = `${currentLevelXp}/10 XP`;
       if (progEl) progEl.style.width = `${progressPercent}%`;
 
-      // 2. Filtre strict : ne charge que les missions de l'enfant connecté
       const kidMissions = state.missions.filter(m => {
         if (m.minAge && kidAge < m.minAge) return false;
         if (m.maxAge && kidAge > m.maxAge) return false;
         if (m.kidId !== 0 && String(m.kidId) !== String(window.activeKidId)) return false;
-        // Pour les tâches tournantes : si ce n'est pas son tour, on ne l'affiche pas
         if (isChild && m.isRotating) {
           const currentKid = getMissionTurnKid(m);
           if (!currentKid || String(currentKid.id) !== String(window.activeKidId)) return false;
@@ -687,11 +706,46 @@ function renderKids() {
       const missionsContainer = document.getElementById("tab-missions-sub");
       if (missionsContainer) {
         missionsContainer.innerHTML = kidMissions.map(m => {
-          // Vérifie si l'enfant a déjà validé cette tâche et si elle est en attente
           const isPending = state.pending && state.pending.some(p => String(p.missionId) === String(m.id) && String(p.kidId) === String(window.activeKidId));
           const btnHtml = isPending 
             ? '<span class="badge" style="background:var(--surface); color:var(--yellow); font-size:0.8rem; padding:6px 10px;">⏳ En attente</span>'
             : `<button class="btn-primary btn-small" onclick="submitMission(${m.id})">Fait !</button>`;
+
+          const isDailyOrder = m.isDailyOrder || (m.title && (m.title.toLowerCase().includes('douche') || m.title.toLowerCase().includes('bain')));
+
+          if (isDailyOrder) {
+            const eligibleKids = getEligibleKidsForMission(m);
+            const myRank = getKidDailyOrder(window.activeKidId, eligibleKids);
+            const rankLabel = getOrderLabel(myRank);
+
+            const orderList = eligibleKids.map(k => {
+              const r = getKidDailyOrder(k.id, eligibleKids);
+              return { name: k.name, rank: r, isMe: String(k.id) === String(window.activeKidId) };
+            }).sort((a,b) => a.rank - b.rank);
+
+            const orderSummary = orderList.map(item => `${item.rank}e: ${item.name}`).join(' • ');
+
+            return `
+              <div class="task-item">
+                <div class="task-info">
+                  <span style="font-size: 1.6rem;">${m.icon}</span>
+                  <div>
+                    <div class="task-title">
+                      ${m.title}
+                      <span class="badge" style="background:rgba(56, 189, 248, 0.2); color:var(--primary); margin-left:6px; font-weight:800;">
+                        🚿 ${rankLabel} aujourd'hui
+                      </span>
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                      Ordre du jour : ${orderSummary}
+                    </div>
+                    <div class="task-reward">+${m.points} ⭐</div>
+                  </div>
+                </div>
+                ${btnHtml}
+              </div>
+            `;
+          }
 
           if (m.isRotating) {
             const currentKid = getMissionTurnKid(m);
@@ -801,8 +855,8 @@ function renderKids() {
               <div style="font-size: 0.8rem; color: var(--yellow); font-weight: bold;">+${p.points} étoile(s)</div>
             </div>
             <div style="display:flex; gap:6px;">
-              <button class="btn-primary btn-small" onclick="validatePending(${p.id}, true)">✔ Valider</button>
-              <button class="btn-danger btn-small" onclick="validatePending(${p.id}, false)">✖ Refuser</button>
+              <button class="btn-primary btn-small" onclick="validatePendingTask(${p.id})">Valider</button>
+              <button class="btn-danger btn-small" onclick="refusePendingTask(${p.id})">Refuser</button>
             </div>
           </div>
         `).join("");
@@ -812,10 +866,10 @@ function renderKids() {
     const presenceContainer = document.getElementById("config-presence-list");
     if (presenceContainer) {
       presenceContainer.innerHTML = state.kids.map(k => `
-        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:8px 12px; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border);">
           <span>${k.avatar} <b>${k.name}</b></span>
-          <button class="btn-nav btn-small" onclick="togglePresence(${k.id})">
-            ${k.present !== false ? '✅ Activé' : '❌ En pause'}
+          <button class="${k.present === false ? 'btn-danger' : 'btn-nav'} btn-small" onclick="toggleKidPresence(${k.id})">
+            ${k.present === false ? 'En pause (absent)' : 'Actif (présent)'}
           </button>
         </div>
       `).join("");
@@ -824,8 +878,8 @@ function renderKids() {
     const adjustContainer = document.getElementById("adjust-stars-list");
     if (adjustContainer) {
       adjustContainer.innerHTML = state.kids.map(k => `
-        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:8px 12px; border-radius:8px;">
-          <span>${k.avatar} ${k.name} (<b>${k.stars} ⭐</b>)</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+          <span>${k.avatar} <b>${k.name}</b> : <b style="color:var(--yellow);">${k.stars}</b> ⭐</span>
           <div style="display:flex; gap:6px;">
             <button class="btn-nav btn-small" onclick="adjustKidStars(${k.id}, -1)">-1</button>
             <button class="btn-nav btn-small" onclick="adjustKidStars(${k.id}, 1)">+1</button>
@@ -833,9 +887,6 @@ function renderKids() {
         </div>
       `).join("");
     }
-    
-    const parentCommonStarsEl = document.getElementById("parent-common-stars");
-    if (parentCommonStarsEl) parentCommonStarsEl.textContent = state.commonStars || 0;
 
     const configKidsContainer = document.getElementById("config-kids-list");
     if (configKidsContainer) {
@@ -853,27 +904,43 @@ function renderKids() {
     const configMissionsContainer = document.getElementById("config-missions-list");
     if (configMissionsContainer) {
       configMissionsContainer.innerHTML = state.missions.map(m => {
-        let rotatingInfo = '';
-        if (m.isRotating) {
+        let extraInfo = '';
+        const isDailyOrder = m.isDailyOrder || (m.title && (m.title.toLowerCase().includes('douche') || m.title.toLowerCase().includes('bain')));
+        if (isDailyOrder) {
+          const eligibleKids = getEligibleKidsForMission(m);
+          const orderSummary = eligibleKids.map(k => {
+            const r = getKidDailyOrder(k.id, eligibleKids);
+            return `${r}e: ${k.name}`;
+          }).sort().join(' ➔ ');
+          extraInfo = `
+            <div style="font-size:0.82rem; color:var(--primary); margin-top:4px;">
+              🔢 Ordre aujourd'hui : <b>${orderSummary || 'Aucun enfant'}</b>
+            </div>
+          `;
+        } else if (m.isRotating) {
           const currentKid = getMissionTurnKid(m);
           const kidName = currentKid ? currentKid.name : 'Aucun';
-          rotatingInfo = `
+          extraInfo = `
             <div style="font-size:0.82rem; color:var(--primary); margin-top:4px;">
               🔄 Tour actuel : <b>${kidName}</b>
               <button class="btn-nav btn-small" style="margin-left:8px; padding:2px 8px; font-size:0.75rem;" onclick="passMissionTurn(${m.id})" title="Passer au prochain enfant">⏭️ Tour suivant</button>
             </div>
           `;
         }
+        let ageLabel = '';
+        if (m.minAge || m.maxAge) {
+          ageLabel = `<span style="font-size:0.75rem; color:var(--text-muted); margin-left:6px;">(${m.minAge ? m.minAge + ' ans min' : ''}${m.minAge && m.maxAge ? ' - ' : ''}${m.maxAge ? m.maxAge + ' ans max' : ''})</span>`;
+        }
         return `
           <div class="task-item" style="flex-direction:column; align-items:flex-start; gap:4px;">
             <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-              <span>${m.icon} <b>${m.title}</b> (${m.points} ⭐) ${m.isRotating ? '<span class="badge badge-cat">🔄 Tourne</span>' : ''}</span>
+              <span>${m.icon} <b>${m.title}</b> (${m.points} ⭐) ${ageLabel} ${m.isRotating ? '<span class="badge badge-cat">🔄 Tourne</span>' : ''} ${isDailyOrder ? '<span class="badge badge-cat">🔢 Ordre douche</span>' : ''}</span>
               <div style="display:flex; gap:6px;">
                 <button class="btn-nav btn-small" onclick="editMission(${m.id})">✏️</button>
                 <button class="btn-danger btn-small" onclick="removeMission(${m.id})">✕</button>
               </div>
             </div>
-            ${rotatingInfo}
+            ${extraInfo}
           </div>
         `;
       }).join("");
