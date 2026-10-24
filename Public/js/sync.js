@@ -1,18 +1,23 @@
-// --- SYNCHRONISATION CLOUD UPSTASH UNIFIÉE ---
+// --- SYNCHRONISATION CLOUD UPSTASH UNIFIÉE ET SÉCURISÉE ---
 const originalSetItem = localStorage.setItem.bind(localStorage);
 const originalRemoveItem = localStorage.removeItem.bind(localStorage);
 
-// Fonction directe de sauvegarde vers Upstash
-window.saveToUpstash = async function(key, value) {
-  try {
-    await fetch(`/api/store/${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: value })
-    });
-  } catch (err) {
-    console.error(`Erreur d'envoi vers Upstash (${key}) :`, err);
-  }
+// File d'attente pour éviter les collisions d'écritures simultanées sur le serveur
+let upstashQueue = Promise.resolve();
+
+window.saveToUpstash = function(key, value) {
+  upstashQueue = upstashQueue.then(async () => {
+    try {
+      await fetch(`/api/store/${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: value })
+      });
+    } catch (err) {
+      console.error(`Erreur d'envoi vers Upstash (${key}) :`, err);
+    }
+  });
+  return upstashQueue;
 };
 
 // Interception transparente de localStorage.setItem
@@ -27,7 +32,13 @@ localStorage.setItem = function(key, value) {
 
 localStorage.removeItem = function(key) {
   originalRemoveItem(key);
-  fetch(`/api/store/${encodeURIComponent(key)}`, { method: 'DELETE' }).catch(err => console.error(err));
+  upstashQueue = upstashQueue.then(async () => {
+    try {
+      await fetch(`/api/store/${encodeURIComponent(key)}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error(err);
+    }
+  });
 };
 
 // Récupération des données Upstash et mise à jour de l'interface
@@ -45,38 +56,31 @@ window.syncFromUpstash = async function() {
     const remoteData = await res.json();
 
     if (remoteData && typeof remoteData === 'object' && Object.keys(remoteData).length > 0) {
-      // 1. Mise à jour du cache local (sans re-déclencher l'envoi vers Upstash)
+      // 1. Mise à jour silencieuse du cache local (sans réémettre d'envois vers le serveur)
       Object.entries(remoteData).forEach(([k, v]) => {
         originalSetItem(k, typeof v === 'string' ? v : JSON.stringify(v));
       });
 
-      // 2. Mise à jour des utilisateurs
+      // 2. Utilisateurs
       if (remoteData.app_users && typeof appUsers !== 'undefined') {
         appUsers = typeof remoteData.app_users === 'string' ? JSON.parse(remoteData.app_users) : remoteData.app_users;
-        if (typeof showLoginScreen === 'function' && !currentUser) {
-          showLoginScreen();
-        }
-        if (typeof renderAppUsersList === 'function' && currentUser && currentUser.role === 'parent') {
-          renderAppUsersList();
-        }
+        if (typeof showLoginScreen === 'function' && !currentUser) showLoginScreen();
+        if (typeof renderAppUsersList === 'function' && currentUser && currentUser.role === 'parent') renderAppUsersList();
       }
 
-      // 3. Mise à jour des missions et étoiles
+      // 3. Missions et étoiles (mise à jour directe de la mémoire active)
       if (remoteData.family_rewards_app || remoteData.family_missions_state) {
-        const missionsRaw = remoteData.family_rewards_app || remoteData.family_missions_state;
-        const parsedMissions = typeof missionsRaw === 'string' ? JSON.parse(missionsRaw) : missionsRaw;
-        
+        const raw = remoteData.family_rewards_app || remoteData.family_missions_state;
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
         if (typeof window.setKidsState === 'function') {
-          window.setKidsState(parsedMissions);
-        } else if (typeof window.syncKidsFromCloud === 'function') {
-          window.syncKidsFromCloud();
+          window.setKidsState(parsed);
         } else {
-          window.kidsState = parsedMissions;
+          window.kidsState = parsed;
           if (typeof renderKids === 'function') renderKids();
         }
       }
 
-      // 4. Mise à jour des comptes (Budget)
+      // 4. Comptes bancaires et budget
       if (remoteData.bank_accounts && typeof bankAccounts !== 'undefined') {
         bankAccounts = typeof remoteData.bank_accounts === 'string' ? JSON.parse(remoteData.bank_accounts) : remoteData.bank_accounts;
         if (typeof renderAccountsCards === 'function') renderAccountsCards();
@@ -85,36 +89,30 @@ window.syncFromUpstash = async function() {
         }
       }
 
-      // 5. Mise à jour des repas
-      if (remoteData.weekly_meals_plan) {
-        const mealsRaw = remoteData.weekly_meals_plan;
-        const parsedMeals = typeof mealsRaw === 'string' ? JSON.parse(mealsRaw) : mealsRaw;
-        if (typeof window.setWeeklyPlan === 'function') {
-          window.setWeeklyPlan(parsedMeals);
-        } else {
-          window.weeklyPlan = parsedMeals;
-          if (typeof renderMeals === 'function') renderMeals();
-        }
+      // 5. Menus
+      if (remoteData.weekly_meals_plan && typeof renderMeals === 'function') {
+        window.weeklyPlan = typeof remoteData.weekly_meals_plan === 'string' ? JSON.parse(remoteData.weekly_meals_plan) : remoteData.weekly_meals_plan;
+        renderMeals();
       }
 
-      // 6. Rafraîchissement du tableau de bord
+      // 6. Tableau de bord
       if (typeof renderDashboard === 'function' && currentUser) {
         renderDashboard();
       }
     }
   } catch (err) {
-    console.warn("Impossible de synchroniser avec Upstash :", err);
+    console.warn("Erreur de synchronisation :", err);
   }
 };
 
-// Synchronisation immédiate au chargement
+// Synchronisation immédiate au lancement
 window.syncFromUpstash();
 
-// Synchronisation au retour sur l'onglet ou l'application
+// Synchronisation dès que l'appareil se déverrouille ou revient sur l'onglet
 window.addEventListener('focus', () => window.syncFromUpstash());
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') window.syncFromUpstash();
 });
 
-// Synchronisation d'arrière-plan toutes les 15 secondes
-setInterval(() => window.syncFromUpstash(), 15000);
+// Synchronisation automatique en tâche de fond toutes les 10 secondes
+setInterval(() => window.syncFromUpstash(), 10000);
