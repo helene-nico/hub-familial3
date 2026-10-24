@@ -43,9 +43,13 @@ let state = JSON.parse(localStorage.getItem("family_rewards_app")) || defaultDat
 
 if (!state || !state.kids || state.kids.length === 0) {
   state = defaultData;
-  const setter = (typeof originalSetItem === "function") ? originalSetItem : localStorage.setItem.bind(localStorage);
-  setter("family_rewards_app", JSON.stringify(state));
-  setter("family_missions_state", JSON.stringify(state));
+  if (typeof originalSetItem === "function") {
+    originalSetItem("family_rewards_app", JSON.stringify(state));
+    originalSetItem("family_missions_state", JSON.stringify(state));
+  } else {
+    localStorage.setItem("family_rewards_app", JSON.stringify(state));
+    localStorage.setItem("family_missions_state", JSON.stringify(state));
+  }
 }
 
 window.kidsState = state;
@@ -53,14 +57,32 @@ window.activeKidId = (state.kids && state.kids.length > 0) ? state.kids[0].id : 
 window.isParentMode = false;
 window.parentCurrentSubpage = 'main';
 
+// --- GESTION LOCALE DE LA PRÉSENCE (Propre à cet appareil) ---
+let localPresence = JSON.parse(localStorage.getItem('local_kid_presence')) || {};
+
+function applyLocalPresence() {
+  if (!state || !state.kids) return;
+  state.kids.forEach(k => {
+    if (localPresence[k.id] !== undefined) {
+      k.present = localPresence[k.id];
+    } else {
+      localPresence[k.id] = k.present !== undefined ? k.present : true;
+    }
+  });
+  localStorage.setItem('local_kid_presence', JSON.stringify(localPresence));
+}
+applyLocalPresence();
+
 // --- RÉCEPTION CLOUD EN DIRECT ---
 window.setKidsState = function(remoteState) {
   if (remoteState && remoteState.kids && remoteState.kids.length > 0) {
     state = remoteState;
+    applyLocalPresence(); // On force la présence locale sur l'état distant reçu
     window.kidsState = state;
-    const setter = (typeof originalSetItem === "function") ? originalSetItem : localStorage.setItem.bind(localStorage);
-    setter("family_rewards_app", JSON.stringify(state));
-    setter("family_missions_state", JSON.stringify(state));
+    if (typeof originalSetItem === "function") {
+      originalSetItem("family_rewards_app", JSON.stringify(state));
+      originalSetItem("family_missions_state", JSON.stringify(state));
+    }
     renderKids();
     if (typeof renderDashboard === "function") renderDashboard();
   }
@@ -96,7 +118,7 @@ function getKidDailyOrder(kidId, eligibleKids) {
   if (!eligibleKids || eligibleKids.length === 0) return 0;
   const epoch = new Date("2024-01-01").getTime();
   const now = new Date();
-  now.setHours(now.getHours() - 4); // Bascule à 4h du matin
+  now.setHours(now.getHours() - 4); // Ne change qu'à partir de 4h du matin
   const daysPassed = Math.floor((now.getTime() - epoch) / (1000 * 60 * 60 * 24));
   const kidIndex = eligibleKids.findIndex(k => String(k.id) === String(kidId));
   if (kidIndex === -1) return 0;
@@ -246,7 +268,6 @@ window.donateToCommon = function() {
   }
 };
 
-// --- GESTION DU CODE PIN PARENT ---
 window.openParentPinModal = function() {
   const modal = document.getElementById('parent-pin-modal');
   const input = document.getElementById('parent-pin-input');
@@ -266,15 +287,12 @@ window.submitParentPin = function() {
   const input = document.getElementById('parent-pin-input');
   const entered = input ? input.value.trim() : '';
   const currentPin = state.pin || "0000";
-  const userPin = (typeof currentUser !== 'undefined' && currentUser && currentUser.pin) ? currentUser.pin : null;
 
-  if (entered === currentPin || entered === userPin || entered === "0000" || entered === "1234") {
+  if (entered === currentPin || entered === "0000" || entered === "1234") {
     window.closeParentPinModal();
-    // 1. Basculer d'abord sur l'onglet missions pour éviter la réinitialisation
-    if (typeof switchMainTab === 'function') switchMainTab('missions');
-    // 2. Activer formellement le mode parent
     window.isParentMode = true;
     window.parentCurrentSubpage = 'main';
+    if (typeof switchMainTab === 'function') switchMainTab('missions');
     renderKids();
   } else {
     alert("Code PIN erroné.");
@@ -380,6 +398,11 @@ window.togglePresence = function(kidId) {
   const kid = state.kids.find(k => String(k.id) === String(kidId));
   if (kid) {
     kid.present = kid.present === false;
+    localPresence[kid.id] = kid.present;
+    localStorage.setItem('local_kid_presence', JSON.stringify(localPresence));
+    
+    // On sauvegarde l'état localement et on le renvoie
+    // L'autre appareil, en recevant l'état, appliquera sa PROPRE valeur 'localPresence'
     saveState();
   }
 };
@@ -849,9 +872,6 @@ function renderKids() {
     }
   } else {
     // --- VUE PARENT ---
-    const parentCommonStars = document.getElementById("parent-common-stars");
-    if (parentCommonStars) parentCommonStars.textContent = state.commonStars || 0;
-
     const pendingContainer = document.getElementById("pending-list");
     if (pendingContainer) {
       if (!state.pending || state.pending.length === 0) {
