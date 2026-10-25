@@ -1237,6 +1237,54 @@ td:nth-child(3) {
   margin: 0;
 }
 
+/* --- SYSTÈME DE PROGRÈS & EFFORT --- */
+.task-progress-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn-effort {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.btn-effort:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.btn-effort-done {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
+}
+
+.btn-effort-done:hover {
+  background: #d1fae5;
+}
+
+.progress-level-badge {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
 .meal-portions-input:focus {
   border-color: var(--primary) !important;
   outline: none;
