@@ -1,4 +1,4 @@
-const APP_VERSION = 19;
+const APP_VERSION = 20;
 
 const defaultData = {
   version: APP_VERSION,
@@ -10,24 +10,24 @@ const defaultData = {
     { id: 3, name: "Adèle", birthDate: "2017-01-01", avatar: "👩", stars: 10, lifetimeStars: 35, present: true }
   ],
   missions: [
-    { id: 101, kidId: 0, title: "S'habiller seul(e) le matin", icon: "👗", minAge: null, maxAge: 7 }, 
-    { id: 102, kidId: 0, title: "Brossage de dents (avec aide)", icon: "🦷", minAge: null, maxAge: 7 }, 
-    { id: 103, kidId: 0, title: "Brossage de dents (2 min chrono)", icon: "🦷", minAge: 8, maxAge: null }, 
-    { id: 104, kidId: 0, title: "Prendre son bain ou sa douche", icon: "🛁", minAge: null, maxAge: 7 },
-    { id: 105, kidId: 0, title: "Douche en autonomie", icon: "🚿", minAge: 8, maxAge: null },
-    { id: 106, kidId: 0, title: "Mettre son pyjama", icon: "👚", minAge: null, maxAge: 7 },
-    { id: 107, kidId: 0, title: "Linge sale au panier", icon: "🧺", minAge: 3, maxAge: null },
-    { id: 108, kidId: 0, title: "Se laver les mains avant le repas", icon: "🧼", minAge: 3, maxAge: null },
+    { id: 101, kidId: 0, title: "S'habiller seul(e) le matin", icon: "👗", points: 1, minAge: null, maxAge: 7 }, 
+    { id: 102, kidId: 0, title: "Brossage de dents (avec aide)", icon: "🦷", points: 1, minAge: null, maxAge: 7 }, 
+    { id: 103, kidId: 0, title: "Brossage de dents (2 min chrono)", icon: "🦷", points: 1, minAge: 8, maxAge: null }, 
+    { id: 104, kidId: 0, title: "Prendre son bain ou sa douche", icon: "🛁", points: 1, minAge: null, maxAge: 7 },
+    { id: 105, kidId: 0, title: "Douche en autonomie", icon: "🚿", points: 1, minAge: 8, maxAge: null },
+    { id: 106, kidId: 0, title: "Mettre son pyjama", icon: "👚", points: 1, minAge: null, maxAge: 7 },
+    { id: 107, kidId: 0, title: "Linge sale au panier", icon: "🧺", points: 1, minAge: 3, maxAge: null },
+    { id: 108, kidId: 0, title: "Se laver les mains avant le repas", icon: "🧼", points: 1, minAge: 3, maxAge: null },
     
-    { id: 201, kidId: 0, title: "Ranger ses jouets", icon: "🧸", minAge: null, maxAge: 7 },
-    { id: 202, kidId: 0, title: "Ranger sa chambre (lit, bureau)", icon: "🧹", minAge: 8, maxAge: null },
-    { id: 203, kidId: 0, title: "Faire son lit au réveil", icon: "🛏️", minAge: 8, maxAge: null },
-    { id: 204, kidId: 0, title: "Ranger manteau et chaussures", icon: "👟", minAge: 4, maxAge: null },
-    { id: 205, kidId: 0, title: "Préparer son cartable le soir", icon: "🎒", minAge: 6, maxAge: null },
-    { id: 206, kidId: 0, title: "Devoirs du soir", icon: "📚", minAge: 6, maxAge: null },
+    { id: 201, kidId: 0, title: "Ranger ses jouets", icon: "🧸", points: 1, minAge: null, maxAge: 7 },
+    { id: 202, kidId: 0, title: "Ranger sa chambre (lit, bureau)", icon: "🧹", points: 1, minAge: 8, maxAge: null },
+    { id: 203, kidId: 0, title: "Faire son lit au réveil", icon: "🛏️", points: 1, minAge: 8, maxAge: null },
+    { id: 204, kidId: 0, title: "Ranger manteau et chaussures", icon: "👟", points: 1, minAge: 4, maxAge: null },
+    { id: 205, kidId: 0, title: "Préparer son cartable le soir", icon: "🎒", points: 1, minAge: 6, maxAge: null },
+    { id: 206, kidId: 0, title: "Devoirs du soir", icon: "📚", points: 2, minAge: 6, maxAge: null },
 
-    { id: 401, kidId: 0, isRotating: true, currentKidId: 1, title: "Mettre la table", icon: "🍽️", minAge: 5, maxAge: null }, 
-    { id: 402, kidId: 0, isRotating: true, currentKidId: 2, title: "Débarrasser la table", icon: "🥣", minAge: 6, maxAge: null } 
+    { id: 401, kidId: 0, isRotating: true, currentKidId: 1, title: "Mettre la table", icon: "🍽️", points: 1, minAge: 5, maxAge: null }, 
+    { id: 402, kidId: 0, isRotating: true, currentKidId: 2, title: "Débarrasser la table", icon: "🥣", points: 1, minAge: 6, maxAge: null } 
   ],
   rewards: [
     { id: 1, isCommon: false, title: "Histoire supplémentaire", icon: "🌙", cost: 3 },
@@ -37,7 +37,8 @@ const defaultData = {
     { id: 6, isCommon: true, title: "Soirée film + pop-corn", icon: "🎬", cost: 20 }
   ],
   pending: [],
-  completedToday: []
+  completedToday: [],
+  history: []
 };
 
 let state = JSON.parse(localStorage.getItem("family_rewards_app")) || defaultData;
@@ -48,6 +49,8 @@ if (!state || !state.kids || state.kids.length === 0) {
   localStorage.setItem("family_missions_state", JSON.stringify(state));
 }
 if (!state.completedToday) state.completedToday = [];
+if (!state.history) state.history = [];
+if (!state.pending) state.pending = [];
 
 window.kidsState = state;
 window.activeKidId = (state.kids && state.kids.length > 0) ? state.kids[0].id : null;
@@ -70,11 +73,13 @@ function applyLocalPresence() {
 }
 applyLocalPresence();
 
-// --- SYNCHRONISATION EN DIRECT ---
+// --- SYNCHRONISATION ---
 window.setKidsState = function(remoteState) {
   if (remoteState && remoteState.kids && remoteState.kids.length > 0) {
     state = remoteState;
     if (!state.completedToday) state.completedToday = [];
+    if (!state.history) state.history = [];
+    if (!state.pending) state.pending = [];
     applyLocalPresence();
     window.kidsState = state;
     localStorage.setItem("family_rewards_app", JSON.stringify(state));
@@ -110,11 +115,49 @@ function getAge(birthDateStr) {
 
 function getDailyKey() {
   const now = new Date();
-  now.setHours(now.getHours() - 4); // Bascule le jour à 4h du matin
+  now.setHours(now.getHours() - 4); // Bascule la journée à 4h du matin
   return now.toISOString().slice(0, 10);
 }
 
-// --- ORDRE QUOTIDIEN (Douche, bain...) ---
+// Calcul de la plage de la semaine (lundi au dimanche)
+function getWeekRange() {
+  const now = new Date();
+  const day = now.getDay(); // 0: Dimanche, 1: Lundi...
+  const diffToMonday = (day === 0 ? -6 : 1) - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  return { monday, sunday };
+}
+
+// Statistiques de la semaine pour un enfant
+function getWeeklyStats(kidId) {
+  const { monday, sunday } = getWeekRange();
+  const kidHistory = (state.history || []).filter(h => {
+    if (String(h.kidId) !== String(kidId)) return false;
+    const hDate = new Date(h.date || h.timestamp);
+    return hDate >= monday && hDate <= sunday;
+  });
+
+  const withoutReminderCount = kidHistory.filter(h => h.withoutReminder === true).length;
+  const withReminderCount = kidHistory.filter(h => h.withoutReminder === false).length;
+  const total = kidHistory.length;
+  const percent = total > 0 ? Math.round((withoutReminderCount / total) * 100) : 0;
+
+  return {
+    total,
+    withoutReminderCount,
+    withReminderCount,
+    percent
+  };
+}
+
+// Ordre quotidien (douche, etc.)
 function getKidDailyOrder(kidId, eligibleKids) {
   if (!eligibleKids || eligibleKids.length === 0) return 0;
   const epoch = new Date("2024-01-01").getTime();
@@ -133,7 +176,7 @@ function getOrderLabel(rank) {
   return rank + "ème";
 }
 
-// --- ROTATION DES TÂCHES ---
+// Logique de rotation des tâches
 function getEligibleKidsForMission(mission) {
   return (state.kids || []).filter(k => {
     if (k.present === false) return false;
@@ -192,60 +235,52 @@ window.switchKidSubTab = function(tab) {
   if (scoreCard) scoreCard.classList.toggle("hidden", tab === "family");
 };
 
-// -------------------------------------------------------------------------
-// ROUTINE ENFANT : Suivi autonome SANS gain de points automatique
-// -------------------------------------------------------------------------
-window.toggleRoutineTask = function(missionId) {
-  const kid = state.kids.find(k => String(k.id) === String(window.activeKidId));
+// --- VALIDATION ENFANT ---
+window.submitMission = function(missionId) {
   const mission = state.missions.find(m => String(m.id) === String(missionId));
-  if (!kid || !mission) return;
+  const kid = state.kids.find(k => String(k.id) === String(window.activeKidId));
+  if (!mission || !kid) return;
 
-  const todayKey = getDailyKey();
-  if (!state.completedToday) state.completedToday = [];
-
-  const existingIndex = state.completedToday.findIndex(c => 
-    String(c.missionId) === String(mission.id) && 
-    (mission.isRotating ? true : String(c.kidId) === String(kid.id)) && 
-    c.date === todayKey
-  );
-
-  if (existingIndex !== -1) {
-    // Décocher si l'enfant a cliqué par erreur
-    state.completedToday.splice(existingIndex, 1);
-  } else {
-    // Cocher la tâche dans sa routine
-    state.completedToday.push({
-      missionId: mission.id,
-      kidId: kid.id,
-      date: todayKey
-    });
-
-    if (mission.isRotating) {
-      advanceMissionTurn(mission.id);
-    }
+  if (!state.pending) state.pending = [];
+  
+  const alreadyPending = state.pending.some(p => String(p.missionId) === String(mission.id) && String(p.kidId) === String(kid.id));
+  if (alreadyPending) {
+    alert("Cette tâche est déjà en attente de vérification par les parents !");
+    return;
   }
 
+  state.pending.push({
+    id: Date.now(),
+    missionId: mission.id,
+    kidId: kid.id,
+    kidName: kid.name,
+    title: mission.title,
+    icon: mission.icon || "📋",
+    date: getDailyKey()
+  });
+
+  if (mission.isRotating) {
+    advanceMissionTurn(mission.id);
+  }
+
+  alert(`Super ${kid.name} ! C'est envoyé aux parents.`);
   saveState();
 };
 
-// Alias pour assurer la compatibilité avec d'éventuels appels existants
-window.submitMission = window.toggleRoutineTask;
-
-// -------------------------------------------------------------------------
-// DÉCISION PARENTALE : Attribuer une étoile pour les progrès
-// -------------------------------------------------------------------------
-window.awardProgressStar = function(kidId) {
+// --- DÉCISION PARENTALE EN FIN DE SEMAINE (Étoile de progrès) ---
+window.awardWeeklyStar = function(kidId) {
   const kid = state.kids.find(k => String(k.id) === String(kidId));
   if (!kid) return;
-
-  kid.stars = (kid.stars || 0) + 1;
-  kid.lifetimeStars = (kid.lifetimeStars || 0) + 1;
-
-  saveState();
-  alert(`Bravo ! 1 étoile de progrès a été accordée à ${kid.name} ⭐`);
+  const stats = getWeeklyStats(kid.id);
+  if (confirm(`Attribuer 1 étoile de progrès à ${kid.name} pour son bilan de la semaine (${stats.withoutReminderCount} tâche(s) sans rappel) ?`)) {
+    kid.stars = (kid.stars || 0) + 1;
+    kid.lifetimeStars = (kid.lifetimeStars || 0) + 1;
+    saveState();
+    alert(`Étoile de progrès accordée à ${kid.name} ! ⭐`);
+  }
 };
 
-// Utilisation des étoiles dans la boutique de privilèges
+// --- UTILISATION DES RÉCOMPENSES ---
 window.claimReward = function(rewardId, isCommon) {
   const reward = state.rewards.find(r => String(r.id) === String(rewardId));
   if (!reward) return;
@@ -381,7 +416,48 @@ window.submitChangePin = function(e) {
   alert("Nouveau code PIN enregistré !");
 };
 
-// Actions rapides parents sur les étoiles
+// --- VALIDATION PARENTALE : AUCUNE ÉTOILE ATTRIBUÉE ICI ---
+window.validatePendingTask = function(id, withoutReminder = true) {
+  const index = (state.pending || []).findIndex(p => String(p.id) === String(id));
+  if (index === -1) return;
+  const item = state.pending[index];
+  const kid = state.kids.find(k => String(k.id) === String(item.kidId));
+  const todayKey = getDailyKey();
+
+  if (kid) {
+    // 1. Enregistre pour cocher la routine du jour
+    if (!state.completedToday) state.completedToday = [];
+    state.completedToday.push({
+      missionId: item.missionId,
+      kidId: item.kidId,
+      date: todayKey,
+      withoutReminder: Boolean(withoutReminder)
+    });
+
+    // 2. Enregistre dans l'historique de la semaine (sans ajouter d'étoile)
+    if (!state.history) state.history = [];
+    state.history.push({
+      id: item.id || Date.now(),
+      kidId: item.kidId,
+      missionId: item.missionId,
+      title: item.title,
+      date: todayKey,
+      withoutReminder: Boolean(withoutReminder),
+      timestamp: Date.now()
+    });
+  }
+
+  state.pending.splice(index, 1);
+  saveState();
+};
+
+window.refusePendingTask = function(id) {
+  const index = (state.pending || []).findIndex(p => String(p.id) === String(id));
+  if (index === -1) return;
+  state.pending.splice(index, 1);
+  saveState();
+};
+
 window.adjustKidStars = function(kidId, delta) {
   const kid = state.kids.find(k => String(k.id) === String(kidId));
   if (kid && (kid.stars + delta) >= 0) {
@@ -412,7 +488,7 @@ window.toggleKidPresence = function(id) {
   window.togglePresence(id);
 };
 
-// Gestion des enfants
+// Gestion des profils enfants
 window.addKid = function() {
   const name = prompt("Prénom de l'enfant :");
   if (!name) return;
@@ -452,7 +528,7 @@ window.removeKid = function(id) {
   }
 };
 
-// Configuration des missions / routines
+// Configuration des missions
 window.openMissionModal = function(id = null) {
   const modal = document.getElementById("missionModal");
   if (!modal) return;
@@ -476,7 +552,7 @@ window.openMissionModal = function(id = null) {
 
     document.getElementById("missionFormTitle").value = m.title || "";
     document.getElementById("missionFormIcon").value = m.icon || "⭐";
-    if (document.getElementById("missionFormPoints")) document.getElementById("missionFormPoints").value = 1;
+    if (document.getElementById("missionFormPoints")) document.getElementById("missionFormPoints").value = m.points || 1;
     if (kidSelect) kidSelect.value = m.kidId || 0;
     document.getElementById("missionFormMinAge").value = (m.minAge !== null && m.minAge !== undefined) ? m.minAge : "";
     document.getElementById("missionFormMaxAge").value = (m.maxAge !== null && m.maxAge !== undefined) ? m.maxAge : "";
@@ -535,6 +611,7 @@ window.saveMissionForm = function(e) {
       kidId: kidId,
       title: title,
       icon: icon,
+      points: 1,
       minAge: minAge,
       maxAge: maxAge,
       isRotating: isRotating,
@@ -657,9 +734,7 @@ function showParentSubpage(page) {
   if (rewardsView) rewardsView.classList.toggle("hidden", page !== 'rewards');
 }
 
-// -------------------------------------------------------------------------
-// AFFICHAGE PRINCIPAL (renderKids)
-// -------------------------------------------------------------------------
+// --- AFFICHAGE PRINCIPAL (renderKids) ---
 function renderKids() {
   const parentView = document.getElementById("parent-view");
   const childView = document.getElementById("child-view");
@@ -709,9 +784,10 @@ function renderKids() {
 
     const activeKid = state.kids.find(k => String(k.id) === String(window.activeKidId));
     if (activeKid) {
-      let kidAge = getAge(activeKid.birthDate);
+      const kidAge = getAge(activeKid.birthDate);
+      const stats = getWeeklyStats(activeKid.id);
 
-      // Calcul des missions éligibles pour l'enfant aujourd'hui
+      // Calcul des missions éligibles aujourd'hui
       const kidMissions = state.missions.filter(m => {
         if (m.minAge && kidAge < m.minAge) return false;
         if (m.maxAge && kidAge > m.maxAge) return false;
@@ -723,7 +799,6 @@ function renderKids() {
         return true;
       });
 
-      // Calcul de la routine complétée aujourd'hui
       const totalTasks = kidMissions.length;
       const completedCount = kidMissions.filter(m => 
         (state.completedToday || []).some(c => 
@@ -735,7 +810,6 @@ function renderKids() {
 
       const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
-      // Mise à jour de la carte de score
       const nameEl = document.getElementById("active-kid-name");
       const starsEl = document.getElementById("active-kid-stars");
       const lvlEl = document.getElementById("active-kid-level");
@@ -744,23 +818,37 @@ function renderKids() {
 
       if (nameEl) nameEl.textContent = activeKid.name + (activeKid.present === false ? " (En pause)" : "");
       if (starsEl) starsEl.textContent = activeKid.stars || 0;
-      if (lvlEl) lvlEl.textContent = `Routine du jour`;
-      if (xpEl) xpEl.textContent = `${completedCount}/${totalTasks} fait(s)`;
+      if (lvlEl) {
+        lvlEl.textContent = `${stats.withoutReminderCount} sans rappel cette semaine 👏`;
+        lvlEl.className = 'badge';
+        lvlEl.style.background = 'rgba(16, 185, 129, 0.15)';
+        lvlEl.style.color = '#10b981';
+        lvlEl.style.fontWeight = '700';
+      }
+      if (xpEl) xpEl.textContent = `${completedCount}/${totalTasks} aujourd'hui`;
       if (progEl) progEl.style.width = `${progressPercent}%`;
 
-      // Liste des étapes de la routine
+      // Liste des tâches de routine
       const missionsContainer = document.getElementById("tab-missions-sub");
       if (missionsContainer) {
         missionsContainer.innerHTML = kidMissions.map(m => {
-          const isDoneToday = (state.completedToday || []).some(c => 
+          const isPending = state.pending && state.pending.some(p => String(p.missionId) === String(m.id) && String(p.kidId) === String(window.activeKidId));
+          const completedEntry = (state.completedToday || []).find(c => 
             String(c.missionId) === String(m.id) && 
             (m.isRotating ? true : String(c.kidId) === String(window.activeKidId)) && 
             c.date === todayKey
           );
 
-          const btnHtml = isDoneToday
-            ? `<button class="btn-primary btn-small" style="background:#10b981; border-color:#10b981;" onclick="toggleRoutineTask(${m.id})">✓ Fait !</button>`
-            : `<button class="btn-nav btn-small" onclick="toggleRoutineTask(${m.id})">À faire</button>`;
+          let btnHtml = "";
+          if (completedEntry) {
+            btnHtml = completedEntry.withoutReminder 
+              ? `<span class="badge" style="background:#ecfdf5; color:#059669; font-size:0.8rem; padding:6px 10px; font-weight:700;">✓ Fait sans rappel 👏</span>`
+              : `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.8rem; padding:6px 10px; font-weight:700;">✓ Fait 👍</span>`;
+          } else if (isPending) {
+            btnHtml = `<span class="badge" style="background:var(--surface); color:var(--yellow); font-size:0.8rem; padding:6px 10px;">⏳ En attente des parents</span>`;
+          } else {
+            btnHtml = `<button class="btn-primary btn-small" onclick="submitMission(${m.id})">Fait !</button>`;
+          }
 
           const isDailyOrder = m.isDailyOrder || (m.title && (m.title.toLowerCase().includes('douche') || m.title.toLowerCase().includes('bain')));
 
@@ -777,7 +865,7 @@ function renderKids() {
             const orderSummary = orderList.map(item => `${item.rank}e: ${item.name}`).join(' • ');
 
             return `
-              <div class="task-item ${isDoneToday ? 'task-done' : ''}">
+              <div class="task-item ${completedEntry ? 'task-done' : ''}">
                 <div class="task-info">
                   <span style="font-size: 1.6rem;">${m.icon}</span>
                   <div>
@@ -803,7 +891,7 @@ function renderKids() {
 
             if (isMyTurn) {
               return `
-                <div class="task-item ${isDoneToday ? 'task-done' : ''}">
+                <div class="task-item ${completedEntry ? 'task-done' : ''}">
                   <div class="task-info">
                     <span style="font-size: 1.6rem;">${m.icon}</span>
                     <div>
@@ -835,7 +923,7 @@ function renderKids() {
           }
 
           return `
-            <div class="task-item ${isDoneToday ? 'task-done' : ''}">
+            <div class="task-item ${completedEntry ? 'task-done' : ''}">
               <div class="task-info">
                 <span style="font-size: 1.6rem;">${m.icon}</span>
                 <div>
@@ -845,10 +933,10 @@ function renderKids() {
               ${btnHtml}
             </div>
           `;
-        }).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucune tâche au programme aujourd'hui.</p>`;
+        }).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucune routine au programme aujourd'hui.</p>`;
       }
 
-      // Boutique individuelle
+      // Boutique de privilèges
       const individualRewards = state.rewards.filter(r => !r.isCommon);
       const rewardsContainer = document.getElementById("tab-rewards-sub");
       if (rewardsContainer) {
@@ -888,44 +976,96 @@ function renderKids() {
             Débloquer
           </button>
         </div>
-      `).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucun cadeau familial configuré.</p>`;
+      `).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucun cadeau familial.</p>`;
     }
   } else {
     // --- VUE PARENT ---
+    
+    // 1. Tâches en attente de validation (Sans rappel / Avec rappel)
     const pendingContainer = document.getElementById("pending-list");
     if (pendingContainer) {
-      // Affichage du récapitulatif des progrès de routine du jour avec bouton d'attribution
-      pendingContainer.innerHTML = state.kids.map(kid => {
-        const kidAge = getAge(kid.birthDate);
-        const kidMissions = state.missions.filter(m => {
-          if (m.minAge && kidAge < m.minAge) return false;
-          if (m.maxAge && kidAge > m.maxAge) return false;
-          if (m.kidId !== 0 && String(m.kidId) !== String(kid.id)) return false;
-          return true;
-        });
-
-        const completedCount = kidMissions.filter(m => 
-          (state.completedToday || []).some(c => 
-            String(c.missionId) === String(m.id) && 
-            (m.isRotating ? true : String(c.kidId) === String(kid.id)) && 
-            c.date === todayKey
-          )
-        ).length;
-
-        return `
-          <div class="task-item" style="border-left: 4px solid var(--primary);">
+      if (!state.pending || state.pending.length === 0) {
+        pendingContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.88rem; text-align:center; padding: 10px;">✅ Aucune tâche en attente.</p>`;
+      } else {
+        pendingContainer.innerHTML = state.pending.map(p => `
+          <div class="task-item" style="border-left: 4px solid var(--yellow); display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <div>
-              <b>${kid.avatar} ${kid.name}</b> : ${completedCount} / ${kidMissions.length} tâches faites aujourd'hui
-              <div style="font-size:0.78rem; color:var(--text-muted);">Solde actuel : <b style="color:var(--yellow);">${kid.stars || 0} ⭐</b></div>
+              <b>${p.kidName}</b> : ${p.title}
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Envoyé aujourd'hui</div>
             </div>
-            <button class="btn-primary btn-small" onclick="awardProgressStar(${kid.id})">
-              ⭐ Féliciter (+1 étoile)
-            </button>
+            <div style="display:flex; gap:6px; flex-shrink:0;">
+              <button class="btn-primary btn-small" style="background:#10b981; border-color:#10b981; font-weight:700;" onclick="validatePendingTask(${p.id}, true)" title="Fait seul sans rappel">
+                👏 Sans rappel
+              </button>
+              <button class="btn-nav btn-small" onclick="validatePendingTask(${p.id}, false)" title="Fait mais avec rappel des parents">
+                👍 Avec rappel
+              </button>
+              <button class="btn-danger btn-small" onclick="refusePendingTask(${p.id})" title="Refuser">
+                ✕
+              </button>
+            </div>
+          </div>
+        `).join("");
+      }
+    }
+
+    // 2. Récapitulatif hebdomadaire automatique
+    const { monday, sunday } = getWeekRange();
+    const options = { day: 'numeric', month: 'short' };
+    const labelStart = monday.toLocaleDateString('fr-FR', options);
+    const labelEnd = sunday.toLocaleDateString('fr-FR', options);
+
+    let recapCard = document.getElementById("parent-weekly-recap");
+    if (!recapCard) {
+      const pendingSection = document.getElementById("pending-list")?.closest(".parent-section-card");
+      if (pendingSection && pendingSection.parentNode) {
+        recapCard = document.createElement("div");
+        recapCard.className = "parent-section-card";
+        recapCard.id = "parent-weekly-recap";
+        pendingSection.parentNode.insertBefore(recapCard, pendingSection.nextSibling);
+      }
+    }
+
+    if (recapCard) {
+      const kidsRecapHtml = state.kids.map(kid => {
+        const stats = getWeeklyStats(kid.id);
+        return `
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:800; font-size:0.95rem;">${kid.avatar} ${kid.name}</div>
+              <div style="font-size:0.85rem; color:var(--text); margin-top:3px;">
+                🌱 <b>${stats.withoutReminderCount}</b> tâche(s) faite(s) <b>sans rappel</b>
+                <span style="font-size:0.75rem; color:var(--text-muted);">(${stats.total} au total cette semaine)</span>
+              </div>
+              <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-top:2px;">
+                Taux d'autonomie : ${stats.percent}%
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:0.85rem; font-weight:700; color:var(--yellow); margin-bottom:4px;">
+                ${kid.stars || 0} ⭐
+              </div>
+              <button class="btn-primary btn-small" onclick="awardWeeklyStar(${kid.id})" style="font-size:0.75rem; padding:4px 10px;">
+                ⭐ Récompenser (+1 ⭐)
+              </button>
+            </div>
           </div>
         `;
       }).join("");
+
+      recapCard.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <h4 style="margin:0;">📊 Bilan de la semaine (Tâches sans rappel)</h4>
+          <span class="badge" style="background:var(--surface); font-size:0.75rem; color:var(--text-muted);">${labelStart} - ${labelEnd}</span>
+        </div>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 10px 0;">
+          Compteur des tâches accomplies en autonomie. Décidez d'attribuer une étoile de progrès si le bilan est positif.
+        </p>
+        ${kidsRecapHtml}
+      `;
     }
 
+    // 3. Présence
     const presenceContainer = document.getElementById("config-presence-list");
     if (presenceContainer) {
       presenceContainer.innerHTML = state.kids.map(k => `
@@ -938,6 +1078,7 @@ function renderKids() {
       `).join("");
     }
 
+    // 4. Ajuster étoiles
     const adjustContainer = document.getElementById("adjust-stars-list");
     if (adjustContainer) {
       adjustContainer.innerHTML = state.kids.map(k => `
@@ -951,6 +1092,7 @@ function renderKids() {
       `).join("");
     }
 
+    // 5. Config enfants
     const configKidsContainer = document.getElementById("config-kids-list");
     if (configKidsContainer) {
       configKidsContainer.innerHTML = state.kids.map(k => `
@@ -964,6 +1106,7 @@ function renderKids() {
       `).join("");
     }
 
+    // 6. Config missions
     const configMissionsContainer = document.getElementById("config-missions-list");
     if (configMissionsContainer) {
       configMissionsContainer.innerHTML = state.missions.map(m => {
@@ -1009,6 +1152,7 @@ function renderKids() {
       }).join("");
     }
 
+    // 7. Config récompenses
     const configRewardsContainer = document.getElementById("config-rewards-list");
     if (configRewardsContainer) {
       configRewardsContainer.innerHTML = state.rewards.map(r => `
