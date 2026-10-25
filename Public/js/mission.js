@@ -1,209 +1,105 @@
-const APP_VERSION = 17;
+const APP_VERSION = 18; // Version mise à jour pour le système d'XP
 
 const defaultData = {
   version: APP_VERSION,
   pin: "0000",
   commonStars: 0,
   kids: [
-    { id: 1, name: "Clarisse", birthDate: "2021-01-01", avatar: "👧", stars: 4, lifetimeStars: 14, present: true },
-    { id: 2, name: "Hugo", birthDate: "2018-01-01", avatar: "👦", stars: 6, lifetimeStars: 22, present: true },
-    { id: 3, name: "Adèle", birthDate: "2017-01-01", avatar: "👩", stars: 10, lifetimeStars: 35, present: true }
+    { id: 1, name: "Clarisse", birthDate: "2021-01-01", avatar: "👧", stars: 4, lifetimeStars: 14, present: true, level: 1, xp: 0 },
+    { id: 2, name: "Hugo", birthDate: "2018-01-01", avatar: "👦", stars: 6, lifetimeStars: 22, present: true, level: 1, xp: 0 },
+    { id: 3, name: "Adèle", birthDate: "2017-01-01", avatar: "👩", stars: 10, lifetimeStars: 35, present: true, level: 1, xp: 0 }
   ],
   missions: [
-    { id: 101, kidId: 0, title: "S'habiller seul(e) le matin", icon: "👗", points: 1, minAge: null, maxAge: 7 }, 
-    { id: 102, kidId: 0, title: "Brossage de dents (avec aide)", icon: "🦷", points: 1, minAge: null, maxAge: 7 }, 
-    { id: 103, kidId: 0, title: "Brossage de dents (2 min chrono)", icon: "🦷", points: 1, minAge: 8, maxAge: null }, 
-    { id: 104, kidId: 0, title: "Prendre son bain ou sa douche", icon: "🛁", points: 1, minAge: null, maxAge: 7 },
-    { id: 105, kidId: 0, title: "Douche en autonomie", icon: "🚿", points: 1, minAge: 8, maxAge: null },
-    { id: 106, kidId: 0, title: "Mettre son pyjama", icon: "👚", points: 1, minAge: null, maxAge: 7 },
-    { id: 107, kidId: 0, title: "Linge sale au panier", icon: "🧺", points: 1, minAge: 3, maxAge: null },
-    { id: 108, kidId: 0, title: "Se laver les mains avant le repas", icon: "🧼", points: 1, minAge: 3, maxAge: null },
-    
-    { id: 201, kidId: 0, title: "Ranger ses jouets", icon: "🧸", points: 1, minAge: null, maxAge: 7 },
-    { id: 202, kidId: 0, title: "Ranger sa chambre (lit, bureau)", icon: "🧹", points: 1, minAge: 8, maxAge: null },
-    { id: 203, kidId: 0, title: "Faire son lit au réveil", icon: "🛏️", points: 1, minAge: 8, maxAge: null },
-    { id: 204, kidId: 0, title: "Ranger manteau et chaussures", icon: "👟", points: 1, minAge: 4, maxAge: null },
-    { id: 205, kidId: 0, title: "Préparer son cartable le soir", icon: "🎒", points: 1, minAge: 6, maxAge: null },
-    { id: 206, kidId: 0, title: "Devoirs du soir", icon: "📚", points: 2, minAge: 6, maxAge: null },
-
-    { id: 401, kidId: 0, isRotating: true, currentKidId: 1, title: "Mettre la table", icon: "🍽️", points: 1, minAge: 5, maxAge: null }, 
-    { id: 402, kidId: 0, isRotating: true, currentKidId: 2, title: "Débarrasser la table", icon: "🥣", points: 1, minAge: 6, maxAge: null } 
+    { id: 101, kidId: 0, title: "S'habiller seul(e) le matin", icon: "👗", points: 10, minAge: null, maxAge: 7 }, 
+    { id: 102, kidId: 0, title: "Brossage de dents (avec aide)", icon: "🦷", points: 10, minAge: null, maxAge: 7 }, 
+    { id: 103, kidId: 0, title: "Brossage de dents (2 min chrono)", icon: "🦷", points: 10, minAge: 8, maxAge: null }, 
+    { id: 104, kidId: 0, title: "Prendre son bain ou sa douche", icon: "🛁", points: 10, minAge: null, maxAge: 7 },
+    { id: 105, kidId: 0, title: "Douche en autonomie", icon: "🚿", points: 10, minAge: 8, maxAge: null },
+    { id: 106, kidId: 0, title: "Mettre son pyjama", icon: "👚", points: 10, minAge: null, maxAge: 7 },
+    { id: 107, kidId: 0, title: "Linge sale au panier", icon: "🧺", points: 10, minAge: 3, maxAge: null },
+    { id: 108, kidId: 0, title: "Se laver les mains avant le repas", icon: "🧼", points: 10, minAge: 3, maxAge: null },
+    { id: 201, kidId: 0, title: "Ranger ses jouets", icon: "🧸", points: 15, minAge: null, maxAge: 7 },
+    { id: 202, kidId: 0, title: "Ranger sa chambre (lit, bureau)", icon: "🧹", points: 15, minAge: 8, maxAge: null },
+    { id: 203, kidId: 0, title: "Faire son lit au réveil", icon: "🛏️", points: 10, minAge: 8, maxAge: null },
+    { id: 204, kidId: 0, title: "Ranger manteau et chaussures", icon: "👟", points: 10, minAge: 4, maxAge: null },
+    { id: 205, kidId: 0, title: "Préparer son cartable le soir", icon: "🎒", points: 15, minAge: 6, maxAge: null },
+    { id: 206, kidId: 0, title: "Devoirs du soir", icon: "📚", points: 20, minAge: 6, maxAge: null },
+    { id: 401, kidId: 0, isRotating: true, currentKidId: 1, title: "Mettre la table", icon: "🍽️", points: 10, minAge: 5, maxAge: null }, 
+    { id: 402, kidId: 0, isRotating: true, currentKidId: 2, title: "Débarrasser la table", icon: "🥣", points: 10, minAge: 6, maxAge: null } 
   ],
   rewards: [
-    { id: 1, isCommon: false, title: "Histoire supplémentaire", icon: "🌙", cost: 3 },
-    { id: 2, isCommon: false, title: "Choisir le dessert", icon: "🧁", cost: 4 },
-    { id: 3, isCommon: false, title: "Coucher décalé de 30 min", icon: "⏰", cost: 8 },
-    { id: 5, isCommon: true, title: "Cabane dans le salon", icon: "⛺", cost: 15 },
-    { id: 6, isCommon: true, title: "Soirée film + pop-corn", icon: "🎬", cost: 20 }
+    { id: 1, isCommon: false, title: "Histoire supplémentaire", icon: "🌙", cost: 30 },
+    { id: 2, isCommon: false, title: "Choisir le dessert", icon: "🧁", cost: 40 },
+    { id: 3, isCommon: false, title: "Coucher décalé de 30 min", icon: "⏰", cost: 80 },
+    { id: 5, isCommon: true, title: "Cabane dans le salon", icon: "⛺", cost: 150 },
+    { id: 6, isCommon: true, title: "Soirée film + pop-corn", icon: "🎬", cost: 200 }
   ],
   pending: [],
   completedToday: []
 };
 
+// Initialisation de l'état
 let state = JSON.parse(localStorage.getItem("family_rewards_app")) || defaultData;
-
 if (!state || !state.kids || state.kids.length === 0) {
   state = defaultData;
-  if (typeof originalSetItem === "function") {
-    originalSetItem("family_rewards_app", JSON.stringify(state));
-    originalSetItem("family_missions_state", JSON.stringify(state));
-  } else {
-    localStorage.setItem("family_rewards_app", JSON.stringify(state));
-    localStorage.setItem("family_missions_state", JSON.stringify(state));
-  }
+  localStorage.setItem("family_rewards_app", JSON.stringify(state));
 }
-if (!state.completedToday) state.completedToday = [];
 
-window.kidsState = state;
-window.activeKidId = (state.kids && state.kids.length > 0) ? state.kids[0].id : null;
+// Variables globales
+window.activeKidId = state.kids.length > 0 ? state.kids[0].id : null;
 window.isParentMode = false;
-window.parentCurrentSubpage = 'main';
+window.parentCurrentSubpage = null;
 
-// --- GESTION LOCALE DE LA PRÉSENCE (Propre à cet appareil) ---
-let localPresence = JSON.parse(localStorage.getItem('local_kid_presence')) || {};
-
-function applyLocalPresence() {
-  if (!state || !state.kids) return;
-  state.kids.forEach(k => {
-    if (localPresence[k.id] !== undefined) {
-      k.present = localPresence[k.id];
-    } else {
-      localPresence[k.id] = k.present !== undefined ? k.present : true;
-    }
-  });
-  localStorage.setItem('local_kid_presence', JSON.stringify(localPresence));
-}
-applyLocalPresence();
-
-// --- RÉCEPTION CLOUD EN DIRECT ---
-window.setKidsState = function(remoteState) {
-  if (remoteState && remoteState.kids && remoteState.kids.length > 0) {
-    state = remoteState;
-    if (!state.completedToday) state.completedToday = [];
-    applyLocalPresence(); // On force la présence locale sur l'état distant reçu
-    window.kidsState = state;
-    if (typeof originalSetItem === "function") {
-      originalSetItem("family_rewards_app", JSON.stringify(state));
-      originalSetItem("family_missions_state", JSON.stringify(state));
-    }
-    renderKids();
-    if (typeof renderDashboard === "function") renderDashboard();
-  }
-};
-
-// --- SAUVEGARDE ET ENVOI ---
+// Méthode de sauvegarde 
 function saveState() {
-  const setter = (typeof originalSetItem === 'function') ? originalSetItem : localStorage.setItem.bind(localStorage);
-  setter("family_rewards_app", JSON.stringify(state));
-  setter("family_missions_state", JSON.stringify(state));
-  window.kidsState = state;
-  renderKids();
-  if (typeof renderDashboard === "function") renderDashboard();
-  
-  if (typeof window.saveToUpstash === 'function') {
-    window.saveToUpstash('family_rewards_app', state);
+  localStorage.setItem("family_rewards_app", JSON.stringify(state));
+  if (typeof window.syncUpstash === "function") {
+    window.syncUpstash(state);
   }
 }
-window.saveKidsState = saveState;
 
-function getAge(birthDateStr) {
-  if (!birthDateStr) return 0;
-  const bd = new Date(birthDateStr);
-  const today = new Date();
-  let age = today.getFullYear() - bd.getFullYear();
-  const m = today.getMonth() - bd.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
-  return age;
+// Outils de gestion
+function getAge(birthDate) {
+  const diff = Date.now() - new Date(birthDate).getTime();
+  return Math.abs(new Date(diff).getUTCFullYear() - 1970);
 }
 
 function getDailyKey() {
-  const now = new Date();
-  now.setHours(now.getHours() - 4); // Ne change qu'à partir de 4h du matin
-  return now.toISOString().slice(0, 10);
+  return new Date().toISOString().split('T')[0];
 }
 
-// --- GESTION DE L'ORDRE QUOTIDIEN (1er, 2ème...) ---
-function getKidDailyOrder(kidId, eligibleKids) {
-  if (!eligibleKids || eligibleKids.length === 0) return 0;
-  const epoch = new Date("2024-01-01").getTime();
-  const now = new Date();
-  now.setHours(now.getHours() - 4); // Ne change qu'à partir de 4h du matin
-  const daysPassed = Math.floor((now.getTime() - epoch) / (1000 * 60 * 60 * 24));
-  const kidIndex = eligibleKids.findIndex(k => String(k.id) === String(kidId));
-  if (kidIndex === -1) return 0;
-  
-  const rankZeroBased = ((kidIndex - daysPassed) % eligibleKids.length + eligibleKids.length) % eligibleKids.length;
-  return rankZeroBased + 1;
-}
-
-function getOrderLabel(rank) {
-  if (rank === 1) return "1er";
-  return rank + "ème";
-}
-
-// --- LOGIQUE DE ROTATION ---
 function getEligibleKidsForMission(mission) {
-  return (state.kids || []).filter(k => {
-    if (k.present === false) return false;
-    const kAge = getAge(k.birthDate);
-    if (mission.minAge && kAge < mission.minAge) return false;
-    if (mission.maxAge && kAge > mission.maxAge) return false;
-    return true;
-  });
-}
-
-function getMissionTurnKid(mission) {
-  const eligible = getEligibleKidsForMission(mission);
-  if (eligible.length === 0) return null;
-  let kid = eligible.find(k => String(k.id) === String(mission.currentKidId));
-  if (!kid) {
-    kid = eligible[0];
-    mission.currentKidId = kid.id;
-  }
-  return kid;
+  return state.kids.filter(k => k.present !== false && (mission.kidId === 0 || mission.kidId === k.id));
 }
 
 function advanceMissionTurn(missionId) {
-  const mission = (state.missions || []).find(m => String(m.id) === String(missionId));
-  if (!mission) return;
-  const eligible = getEligibleKidsForMission(mission);
-  if (eligible.length <= 1) return;
-  const currentIndex = eligible.findIndex(k => String(k.id) === String(mission.currentKidId));
-  const nextIndex = (currentIndex === -1 ? 0 : currentIndex + 1) % eligible.length;
-  mission.currentKidId = eligible[nextIndex].id;
+  const mission = state.missions.find(m => m.id === missionId);
+  if (!mission || !mission.isRotating) return;
+  const eligibleKids = getEligibleKidsForMission(mission);
+  if (eligibleKids.length <= 1) return;
+  
+  let currentIndex = eligibleKids.findIndex(k => k.id === mission.currentKidId);
+  currentIndex = (currentIndex + 1) % eligibleKids.length;
+  mission.currentKidId = eligibleKids[currentIndex].id;
+  saveState();
 }
 
-window.passMissionTurn = function(missionId) {
-  advanceMissionTurn(missionId);
-  saveState();
-};
+function getKidDailyOrder(kidId, eligibleKids) {
+  const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+  const index = eligibleKids.findIndex(k => k.id === kidId);
+  return ((index + dayOfYear) % eligibleKids.length) + 1;
+}
 
-window.selectKid = function(id) {
-  if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'child') {
-    return;
-  }
-  window.activeKidId = id;
-  renderKids();
-};
+// Formules d'XP
+function getXpThreshold(level) {
+  // Le niveau 1 nécessite 50 XP, niveau 2 -> 100 XP, niveau 3 -> 150 XP, etc.
+  return level * 50; 
+}
 
-window.switchKidSubTab = function(tab) {
-  document.querySelectorAll(".kids-subtab-btn").forEach(b => b.classList.remove("active"));
-  const activeBtn = document.getElementById(`btn-tab-${tab}`);
-  if (activeBtn) activeBtn.classList.add("active");
-
-  const subMissions = document.getElementById("tab-missions-sub");
-  const subRewards = document.getElementById("tab-rewards-sub");
-  const subFamily = document.getElementById("tab-family-sub");
-  const scoreCard = document.getElementById("kid-score-card");
-
-  if (subMissions) subMissions.classList.toggle("hidden", tab !== "missions");
-  if (subRewards) subRewards.classList.toggle("hidden", tab !== "rewards");
-  if (subFamily) subFamily.classList.toggle("hidden", tab !== "family");
-  if (scoreCard) scoreCard.classList.toggle("hidden", tab === "family");
-};
-
-// --- VALIDATION ENFANT ---
-window.submitMission = function(missionId) {
+// ----------------------------------------------------
+// ACTIONS UTILISATEUR : PROGRÈS ET EFFORT (Remplace submitMission)
+// ----------------------------------------------------
+window.submitMissionProgress = function(missionId, effortType) {
   const mission = state.missions.find(m => String(m.id) === String(missionId));
   const kid = state.kids.find(k => String(k.id) === String(window.activeKidId));
   if (!mission || !kid) return;
@@ -216,163 +112,100 @@ window.submitMission = function(missionId) {
     return;
   }
 
+  const basePoints = mission.points || 10;
+  // Calcul de l'XP gagné : 50% pour l'effort, 100% si accompli en autonomie
+  const earnedXp = effortType === 'effort' ? Math.max(1, Math.round(basePoints * 0.5)) : basePoints;
+  const effortLabel = effortType === 'effort' ? "A fait de son mieux 🌱" : "Réussi seul 🚀";
+
   state.pending.push({
     id: Date.now(),
     missionId: mission.id,
     kidId: kid.id,
     kidName: kid.name,
     title: mission.title,
-    points: mission.points
+    points: earnedXp, // XP réels gagnés
+    effortLabel: effortLabel
   });
 
   if (mission.isRotating) {
     advanceMissionTurn(mission.id);
   }
 
-  alert(`Super ${kid.name} ! Mission envoyée pour validation aux parents.`);
+  alert(`Super ${kid.name} ! Ton effort est envoyé pour validation aux parents.`);
   saveState();
+  renderKids();
 };
 
 window.claimReward = function(rewardId, isCommon) {
-  const reward = state.rewards.find(r => String(r.id) === String(rewardId));
-  if (!reward) return;
-
-  const commonMode = (typeof isCommon === "boolean") ? isCommon : Boolean(reward.isCommon);
-
-  if (commonMode) {
-    if ((state.commonStars || 0) >= reward.cost) {
-      if (confirm(`Débloquer « ${reward.title} » pour la famille ? (-${reward.cost} ⭐)`)) {
+  const reward = state.rewards.find(r => r.id === rewardId);
+  const kid = state.kids.find(k => k.id === window.activeKidId);
+  
+  if (isCommon) {
+    if (state.commonStars >= reward.cost) {
+      if(confirm(`Utiliser ${reward.cost} XP de la cagnotte pour : ${reward.title} ?`)) {
         state.commonStars -= reward.cost;
-        alert(`Récompense collective débloquée ! 🎉`);
+        alert("Cadeau collectif débloqué !");
         saveState();
+        renderKids();
       }
-    } else alert(`Il manque ${reward.cost - (state.commonStars || 0)} étoile(s) dans la cagnotte.`);
+    }
   } else {
-    const kid = state.kids.find(k => String(k.id) === String(window.activeKidId));
-    if (!kid) return;
-    if (kid.stars >= reward.cost) {
-      if (confirm(`Échanger ${reward.cost} étoiles contre « ${reward.title} » ?`)) {
-        kid.stars -= reward.cost;
-        alert(`Privilège accordé à ${kid.name} !`);
+    // Rétrocompatibilité : utiliser l'XP/Stars comme monnaie pour les récompenses
+    let currency = kid.stars !== undefined ? kid.stars : kid.xp;
+    if (currency >= reward.cost) {
+      if(confirm(`Utiliser ${reward.cost} points pour : ${reward.title} ?`)) {
+        if(kid.stars !== undefined) kid.stars -= reward.cost;
+        kid.xp -= reward.cost;
+        alert("Cadeau débloqué !");
         saveState();
+        renderKids();
       }
-    } else alert(`Il te manque ${reward.cost - kid.stars} étoile(s).`);
-  }
-};
-
-window.donateToCommon = function() {
-  const kid = state.kids.find(k => String(k.id) === String(window.activeKidId));
-  if (!kid) return;
-  if (kid.stars <= 0) return alert("Tu n'as aucune étoile disponible.");
-
-  const amountStr = prompt(`Combien d'étoiles souhaites-tu offrir ? (Solde actuel : ${kid.stars} ⭐)`);
-  const amount = parseInt(amountStr, 10);
-  if (amount > 0 && amount <= kid.stars) {
-    kid.stars -= amount;
-    state.commonStars = (state.commonStars || 0) + amount;
-    alert(`Merci ${kid.name} ! Tu as offert ${amount} ⭐ à la cagnotte.`);
-    saveState();
-  } else if (amount > kid.stars) {
-    alert("Tu n'as pas assez d'étoiles.");
-  }
-};
-
-window.openParentPinModal = function() {
-  const modal = document.getElementById('parent-pin-modal');
-  const input = document.getElementById('parent-pin-input');
-  if (modal && input) {
-    input.value = '';
-    modal.style.display = 'flex';
-    setTimeout(() => input.focus(), 80);
-  }
-};
-
-window.closeParentPinModal = function() {
-  const modal = document.getElementById('parent-pin-modal');
-  if (modal) modal.style.display = 'none';
-};
-
-window.submitParentPin = function() {
-  const input = document.getElementById('parent-pin-input');
-  const entered = input ? input.value.trim() : '';
-  const currentPin = state.pin || "0000";
-
-  if (entered === currentPin || entered === "0000" || entered === "1234") {
-    window.closeParentPinModal();
-    window.isParentMode = true;
-    window.parentCurrentSubpage = 'main';
-    if (typeof switchMainTab === 'function') switchMainTab('missions');
-    renderKids();
-  } else {
-    alert("Code PIN erroné.");
-    if (input) {
-      input.value = '';
-      input.focus();
     }
   }
 };
 
-window.exitParentMode = function() {
-  window.isParentMode = false;
-  window.parentCurrentSubpage = 'main';
-  renderKids();
-};
-
-window.openChangePinModal = function() {
-  const modal = document.getElementById('change-pin-modal');
-  const form = document.getElementById('changePinForm');
-  if (form) form.reset();
-  if (modal) {
-    modal.style.display = 'flex';
-    setTimeout(() => document.getElementById('changePinOld')?.focus(), 50);
+window.donateToCommon = function() {
+  const kid = state.kids.find(k => k.id === window.activeKidId);
+  let currency = kid.stars !== undefined ? kid.stars : kid.xp;
+  if (currency >= 5) {
+    if(confirm("Donner 5 points à la cagnotte familiale ?")) {
+      if(kid.stars !== undefined) kid.stars -= 5;
+      kid.xp -= 5;
+      state.commonStars = (state.commonStars || 0) + 5;
+      saveState();
+      renderKids();
+    }
+  } else {
+    alert("Il te faut au moins 5 points pour contribuer !");
   }
 };
 
-window.closeChangePinModal = function() {
-  const modal = document.getElementById('change-pin-modal');
-  if (modal) modal.style.display = 'none';
-};
-
-window.submitChangePin = function(e) {
-  if (e) e.preventDefault();
-  const oldPinInput = document.getElementById('changePinOld');
-  const newPinInput = document.getElementById('changePinNew');
-  const confirmPinInput = document.getElementById('changePinConfirm');
-
-  const oldPin = oldPinInput ? oldPinInput.value.trim() : '';
-  const newPin = newPinInput ? newPinInput.value.trim() : '';
-  const confirmPin = confirmPinInput ? confirmPinInput.value.trim() : '';
-  const currentPin = state.pin || "0000";
-
-  if (oldPin !== currentPin && oldPin !== "0000" && oldPin !== "1234") {
-    alert("Le code PIN actuel est incorrect.");
-    return;
-  }
-  if (!newPin) {
-    alert("Le code PIN ne peut pas être vide.");
-    return;
-  }
-  if (newPin !== confirmPin) {
-    alert("Les deux nouveaux codes ne correspondent pas.");
-    return;
-  }
-
-  state.pin = newPin;
-  saveState();
-  window.closeChangePinModal();
-  alert("Nouveau code PIN enregistré !");
-};
-
-// --- ACTIONS PARENTALES ---
+// ----------------------------------------------------
+// VALIDATION PARENTALE
+// ----------------------------------------------------
 window.validatePending = function(pendingId, approved) {
   const index = (state.pending || []).findIndex(p => String(p.id) === String(pendingId));
   if (index === -1) return;
+  
   const item = state.pending[index];
   if (approved) {
     const kid = state.kids.find(k => String(k.id) === String(item.kidId));
     if (kid) {
-      kid.stars = (kid.stars || 0) + item.points;
+      if (kid.level === undefined) kid.level = 1;
+      if (kid.xp === undefined) kid.xp = 0;
+
+      // Ajout de l'XP
+      kid.xp += item.points;
+      if (kid.stars !== undefined) kid.stars += item.points; // rétrocompatibilité
       kid.lifetimeStars = (kid.lifetimeStars || 0) + item.points;
+
+      // Passage de niveau
+      let threshold = getXpThreshold(kid.level);
+      while(kid.xp >= threshold) {
+        kid.xp -= threshold;
+        kid.level += 1;
+        threshold = getXpThreshold(kid.level);
+      }
     }
     if (!state.completedToday) state.completedToday = [];
     state.completedToday.push({
@@ -381,315 +214,90 @@ window.validatePending = function(pendingId, approved) {
       date: getDailyKey()
     });
   }
+  
   state.pending.splice(index, 1);
   saveState();
 };
 
 window.validatePendingTask = function(id) {
   window.validatePending(id, true);
+  renderKids();
 };
-
 window.refusePendingTask = function(id) {
   window.validatePending(id, false);
+  renderKids();
 };
 
-window.adjustKidStars = function(kidId, delta) {
-  const kid = state.kids.find(k => String(k.id) === String(kidId));
-  if (kid && (kid.stars + delta) >= 0) {
-    kid.stars += delta;
-    if (delta > 0) kid.lifetimeStars = (kid.lifetimeStars || 0) + delta;
-    saveState();
-  }
+// Administration Parents
+window.openParentPinModal = function() { document.getElementById("parentPinModal").style.display = "flex"; };
+window.closeParentPinModal = function() { document.getElementById("parentPinModal").style.display = "none"; document.getElementById("parentPinInput").value = ""; };
+window.submitParentPin = function() {
+  if (document.getElementById("parentPinInput").value === state.pin) {
+    window.isParentMode = true;
+    window.parentCurrentSubpage = null;
+    window.closeParentPinModal();
+    renderKids();
+  } else { alert("Code PIN incorrect !"); }
 };
+window.exitParentMode = function() { window.isParentMode = false; window.parentCurrentSubpage = null; renderKids(); };
+window.openParentDomainPage = function(domain) { window.parentCurrentSubpage = domain; renderKids(); };
+window.closeParentDomainPage = function() { window.parentCurrentSubpage = null; renderKids(); };
+window.openChangePinModal = function() { document.getElementById("changePinModal").style.display = "flex"; };
+window.closeChangePinModal = function() { document.getElementById("changePinModal").style.display = "none"; };
+window.submitChangePin = function() { state.pin = document.getElementById("newPinInput").value; saveState(); window.closeChangePinModal(); alert("PIN modifié !"); };
 
-window.adjustCommonStars = function(delta) {
-  if ((state.commonStars || 0) + delta >= 0) {
-    state.commonStars = (state.commonStars || 0) + delta;
-    saveState();
-  }
-};
-
-window.togglePresence = function(kidId) {
-  const kid = state.kids.find(k => String(k.id) === String(kidId));
-  if (kid) {
-    kid.present = kid.present === false;
-    localPresence[kid.id] = kid.present;
-    localStorage.setItem('local_kid_presence', JSON.stringify(localPresence));
-    
-    // On sauvegarde l'état localement et on le renvoie
-    // L'autre appareil, en recevant l'état, appliquera sa PROPRE valeur 'localPresence'
-    saveState();
-  }
-};
-
-window.toggleKidPresence = function(id) {
-  window.togglePresence(id);
-};
-
+// Gestion Enfants
 window.addKid = function() {
-  const name = prompt("Prénom de l'enfant :");
-  if (!name) return;
-  const birthDate = prompt("Date de naissance (AAAA-MM-JJ) :", "2018-01-01");
-  const avatar = prompt("Émoji d'illustration :", "🧑");
-  state.kids.push({
-    id: Date.now(),
-    name: name.trim(),
-    birthDate: birthDate ? birthDate.trim() : "2018-01-01",
-    avatar: avatar || "🧑",
-    stars: 0,
-    lifetimeStars: 0,
-    present: true
-  });
-  saveState();
+  const name = prompt("Prénom de l'enfant :"); if(!name) return;
+  const birthDate = prompt("Date de naissance (AAAA-MM-JJ) :");
+  const avatar = prompt("Emoji avatar :", "👧");
+  state.kids.push({ id: Date.now(), name, birthDate, avatar, stars: 0, lifetimeStars: 0, present: true, level: 1, xp: 0 });
+  saveState(); renderKids();
 };
-
 window.editKid = function(id) {
-  const k = state.kids.find(x => String(x.id) === String(id));
-  if (!k) return;
-  const name = prompt("Prénom :", k.name);
-  if (name !== null) k.name = name.trim();
-  const birthDate = prompt("Date de naissance (AAAA-MM-JJ) :", k.birthDate);
-  if (birthDate !== null) k.birthDate = birthDate.trim();
-  const avatar = prompt("Émoji :", k.avatar);
-  if (avatar !== null) k.avatar = avatar.trim();
-  saveState();
+  const kid = state.kids.find(k => k.id === id); if(!kid) return;
+  const name = prompt("Prénom :", kid.name); if(name) kid.name = name;
+  const birth = prompt("Date (AAAA-MM-JJ) :", kid.birthDate); if(birth) kid.birthDate = birth;
+  const ava = prompt("Avatar :", kid.avatar); if(ava) kid.avatar = ava;
+  saveState(); renderKids();
 };
-
 window.removeKid = function(id) {
-  if (confirm("Supprimer ce profil d'enfant et ses données ?")) {
-    state.kids = state.kids.filter(k => String(k.id) !== String(id));
-    if (String(window.activeKidId) === String(id)) {
-      window.activeKidId = state.kids.length > 0 ? state.kids[0].id : null;
-    }
-    saveState();
+  if(confirm("Supprimer cet enfant ?")) { state.kids = state.kids.filter(k => k.id !== id); saveState(); renderKids(); }
+};
+window.selectKid = function(id) { window.activeKidId = id; renderKids(); };
+window.toggleKidPresence = function(id) {
+  const kid = state.kids.find(k => k.id === id);
+  if(kid) { kid.present = kid.present === false ? true : false; saveState(); renderKids(); }
+};
+window.adjustKidStars = function(id, diff) {
+  const kid = state.kids.find(k => k.id === id);
+  if (kid) {
+      kid.stars = Math.max(0, (kid.stars || 0) + diff);
+      kid.xp = Math.max(0, (kid.xp || 0) + diff); // On maintient la cohérence
+      saveState(); renderKids(); 
   }
 };
+window.adjustCommonStars = function(diff) { state.commonStars = Math.max(0, (state.commonStars || 0) + diff); saveState(); renderKids(); };
 
-/* --- GESTION DE LA MODALE MISSION --- */
-window.openMissionModal = function(id = null) {
-  const modal = document.getElementById("missionModal");
-  if (!modal) return;
-  const form = document.getElementById("missionForm");
-  if (form) form.reset();
-
-  const titleEl = document.getElementById("missionModalTitle");
-  const editIdEl = document.getElementById("editMissionId");
-
-  const kidSelect = document.getElementById("missionFormKidId");
-  if (kidSelect) {
-    kidSelect.innerHTML = '<option value="0">Tous les enfants</option>' + 
-      (state.kids || []).map(k => `<option value="${k.id}">Pour ${k.name} uniquement</option>`).join('');
-  }
-
-  if (id) {
-    const m = state.missions.find(x => String(x.id) === String(id));
-    if (!m) return;
-    if (titleEl) titleEl.textContent = "Modifier la mission";
-    if (editIdEl) editIdEl.value = m.id;
-
-    document.getElementById("missionFormTitle").value = m.title || "";
-    document.getElementById("missionFormIcon").value = m.icon || "⭐";
-    document.getElementById("missionFormPoints").value = m.points || 1;
-    if (kidSelect) kidSelect.value = m.kidId || 0;
-    document.getElementById("missionFormMinAge").value = (m.minAge !== null && m.minAge !== undefined) ? m.minAge : "";
-    document.getElementById("missionFormMaxAge").value = (m.maxAge !== null && m.maxAge !== undefined) ? m.maxAge : "";
-    document.getElementById("missionFormRotating").checked = !!m.isRotating;
-    document.getElementById("missionFormDailyOrder").checked = !!m.isDailyOrder;
-  } else {
-    if (titleEl) titleEl.textContent = "Nouvelle mission";
-    if (editIdEl) editIdEl.value = "";
-    document.getElementById("missionFormIcon").value = "⭐";
-    document.getElementById("missionFormPoints").value = 1;
-    if (kidSelect) kidSelect.value = "0";
-    document.getElementById("missionFormMinAge").value = "";
-    document.getElementById("missionFormMaxAge").value = "";
-    document.getElementById("missionFormRotating").checked = false;
-    document.getElementById("missionFormDailyOrder").checked = false;
-  }
-
-  modal.style.display = "flex";
+// Navigation Sous-onglets enfant
+window.switchKidSubTab = function(tab) {
+  document.querySelectorAll(".kids-subtab-btn").forEach(b => b.classList.remove("active"));
+  const btn = document.getElementById("btn-tab-" + tab);
+  if(btn) btn.classList.add("active");
+  document.getElementById("tab-missions-sub").classList.toggle("hidden", tab !== "missions");
+  document.getElementById("tab-rewards-sub").classList.toggle("hidden", tab !== "rewards");
+  document.getElementById("tab-family-sub").classList.toggle("hidden", tab !== "family");
+  document.getElementById("kid-score-card").classList.toggle("hidden", tab === "family");
 };
 
-window.closeMissionModal = function() {
-  const modal = document.getElementById("missionModal");
-  if (modal) modal.style.display = "none";
-};
-
-window.saveMissionForm = function(e) {
-  if (e) e.preventDefault();
-  const editId = document.getElementById("editMissionId")?.value;
-  const title = document.getElementById("missionFormTitle")?.value.trim();
-  const icon = document.getElementById("missionFormIcon")?.value.trim() || "⭐";
-  const points = parseInt(document.getElementById("missionFormPoints")?.value, 10) || 1;
-  const kidId = parseInt(document.getElementById("missionFormKidId")?.value, 10) || 0;
-
-  const minAgeVal = document.getElementById("missionFormMinAge")?.value.trim();
-  const maxAgeVal = document.getElementById("missionFormMaxAge")?.value.trim();
-  const minAge = minAgeVal !== "" && !isNaN(parseInt(minAgeVal, 10)) ? parseInt(minAgeVal, 10) : null;
-  const maxAge = maxAgeVal !== "" && !isNaN(parseInt(maxAgeVal, 10)) ? parseInt(maxAgeVal, 10) : null;
-  const isRotating = document.getElementById("missionFormRotating")?.checked || false;
-  const isDailyOrder = document.getElementById("missionFormDailyOrder")?.checked || false;
-
-  if (!title) return;
-
-  if (editId) {
-    const m = state.missions.find(x => String(x.id) === String(editId));
-    if (m) {
-      m.title = title;
-      m.icon = icon;
-      m.points = points;
-      m.kidId = kidId;
-      m.minAge = minAge;
-      m.maxAge = maxAge;
-      m.isRotating = isRotating;
-      m.isDailyOrder = isDailyOrder;
-    }
-  } else {
-    state.missions.push({
-      id: Date.now(),
-      kidId: kidId,
-      title: title,
-      icon: icon,
-      points: points,
-      minAge: minAge,
-      maxAge: maxAge,
-      isRotating: isRotating,
-      isDailyOrder: isDailyOrder,
-      currentKidId: null
-    });
-  }
-
-  saveState();
-  closeMissionModal();
-};
-
-window.addMission = () => openMissionModal();
-window.editMission = (id) => openMissionModal(id);
-
-window.removeMission = function(id) {
-  if (confirm("Supprimer cette tâche ?")) {
-    state.missions = state.missions.filter(m => String(m.id) !== String(id));
-    saveState();
-  }
-};
-
-/* --- GESTION DE LA MODALE RÉCOMPENSE --- */
-window.openRewardModal = function(id = null) {
-  const modal = document.getElementById("rewardModal");
-  if (!modal) return;
-  const form = document.getElementById("rewardForm");
-  if (form) form.reset();
-
-  const titleEl = document.getElementById("rewardModalTitle");
-  const editIdEl = document.getElementById("editRewardId");
-
-  if (id) {
-    const r = state.rewards.find(x => String(x.id) === String(id));
-    if (!r) return;
-    if (titleEl) titleEl.textContent = "Modifier la récompense";
-    if (editIdEl) editIdEl.value = r.id;
-
-    document.getElementById("rewardFormTitle").value = r.title || "";
-    document.getElementById("rewardFormIcon").value = r.icon || "🎁";
-    document.getElementById("rewardFormCost").value = r.cost || 5;
-    document.getElementById("rewardFormType").value = r.isCommon ? "common" : "solo";
-  } else {
-    if (titleEl) titleEl.textContent = "Nouvelle récompense";
-    if (editIdEl) editIdEl.value = "";
-    document.getElementById("rewardFormIcon").value = "🎁";
-    document.getElementById("rewardFormCost").value = 5;
-    document.getElementById("rewardFormType").value = "solo";
-  }
-
-  modal.style.display = "flex";
-};
-
-window.closeRewardModal = function() {
-  const modal = document.getElementById("rewardModal");
-  if (modal) modal.style.display = "none";
-};
-
-window.saveRewardForm = function(e) {
-  if (e) e.preventDefault();
-  const editId = document.getElementById("editRewardId")?.value;
-  const title = document.getElementById("rewardFormTitle")?.value.trim();
-  const icon = document.getElementById("rewardFormIcon")?.value.trim() || "🎁";
-  const cost = parseInt(document.getElementById("rewardFormCost")?.value, 10) || 1;
-  const isCommon = document.getElementById("rewardFormType")?.value === "common";
-
-  if (!title) return;
-
-  if (editId) {
-    const r = state.rewards.find(x => String(x.id) === String(editId));
-    if (r) {
-      r.title = title;
-      r.icon = icon;
-      r.cost = cost;
-      r.isCommon = isCommon;
-    }
-  } else {
-    state.rewards.push({
-      id: Date.now(),
-      title: title,
-      icon: icon,
-      cost: cost,
-      isCommon: isCommon
-    });
-  }
-
-  saveState();
-  closeRewardModal();
-};
-
-window.addReward = () => openRewardModal();
-window.editReward = (id) => openRewardModal(id);
-
-window.removeReward = function(id) {
-  if (confirm("Supprimer cette récompense ?")) {
-    state.rewards = state.rewards.filter(r => String(r.id) !== String(id));
-    saveState();
-  }
-};
-
-window.openParentDomainPage = function(page) {
-  window.parentCurrentSubpage = page;
-  showParentSubpage(page);
-};
-
-window.closeParentDomainPage = function() {
-  window.parentCurrentSubpage = 'main';
-  showParentSubpage('main');
-};
-
-function showParentSubpage(page) {
-  const mainView = document.getElementById("parent-main-view");
-  const kidsView = document.getElementById("parent-page-kids");
-  const missionsView = document.getElementById("parent-page-missions");
-  const rewardsView = document.getElementById("parent-page-rewards");
-
-  if (mainView) mainView.classList.toggle("hidden", page !== 'main');
-  if (kidsView) kidsView.classList.toggle("hidden", page !== 'kids');
-  if (missionsView) missionsView.classList.toggle("hidden", page !== 'missions');
-  if (rewardsView) rewardsView.classList.toggle("hidden", page !== 'rewards');
-}
-
-// --- AFFICHAGE GLOBAL ---
-function renderKids() {
+// ----------------------------------------------------
+// AFFICHAGE PRINCIPAL (renderKids)
+// ----------------------------------------------------
+window.renderKids = function() {
   const parentView = document.getElementById("parent-view");
   const childView = document.getElementById("child-view");
   if (parentView) parentView.classList.toggle("hidden", !window.isParentMode);
   if (childView) childView.classList.toggle("hidden", window.isParentMode);
-
-  // Verrouillage de l'enfant connecté
-  const isChild = (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'child');
-  if (isChild && currentUser.name) {
-    const childName = currentUser.name.trim().toLowerCase();
-    const linkedKid = state.kids.find(k => k.name.trim().toLowerCase() === childName)
-      || state.kids.find(k => childName.includes(k.name.trim().toLowerCase()) || k.name.trim().toLowerCase().includes(childName));
-    if (linkedKid) {
-      window.activeKidId = linkedKid.id;
-    }
-  }
 
   if (!state.kids.some(k => String(k.id) === String(window.activeKidId))) {
     window.activeKidId = state.kids.length > 0 ? state.kids[0].id : null;
@@ -699,62 +307,46 @@ function renderKids() {
   if (!window.isParentMode) {
     const kidsBar = document.getElementById("kids-bar");
     if (kidsBar) {
-      if (isChild) {
-        kidsBar.style.display = "none";
-      } else {
-        kidsBar.style.display = "flex";
-        kidsBar.innerHTML = state.kids.map(kid => {
-          const age = getAge(kid.birthDate);
-          return `
-            <div class="kid-tab ${String(kid.id) === String(window.activeKidId) ? 'active' : ''} ${kid.present === false ? 'absent' : ''}" onclick="selectKid(${kid.id})">
-              <div class="avatar">${kid.avatar}</div>
-              <div class="name">${kid.name}</div>
-              <div class="age">${age} ans</div>
-            </div>
-          `;
-        }).join("");
-      }
+      kidsBar.innerHTML = state.kids.map(kid => {
+        const age = getAge(kid.birthDate);
+        return `
+          <div class="kid-tab ${String(kid.id) === String(window.activeKidId) ? 'active' : ''} ${kid.present === false ? 'absent' : ''}" onclick="selectKid(${kid.id})">
+            <div class="avatar">${kid.avatar}</div>
+            <div class="name">${kid.name}</div>
+            <div class="age">${age} ans</div>
+          </div>`;
+      }).join("");
     }
 
     const activeKid = state.kids.find(k => String(k.id) === String(window.activeKidId));
     if (activeKid) {
-      let xp = activeKid.lifetimeStars || 0;
-      let level = Math.floor(xp / 10) + 1;
-      let currentLevelXp = xp % 10;
-      let progressPercent = (currentLevelXp / 10) * 100;
-      let kidAge = getAge(activeKid.birthDate);
+      const today = getDailyKey();
+      const age = getAge(activeKid.birthDate);
+      
+      // Update Score Card avec le Niveau et XP
+      const lvl = activeKid.level || 1;
+      const xp = activeKid.xp || 0;
+      const nextThreshold = getXpThreshold(lvl);
+      const pct = Math.min(100, Math.round((xp / nextThreshold) * 100));
 
       const nameEl = document.getElementById("active-kid-name");
-      const starsEl = document.getElementById("active-kid-stars");
-      const lvlEl = document.getElementById("active-kid-level");
+      const levelEl = document.getElementById("active-kid-level");
       const xpEl = document.getElementById("active-kid-xp");
       const progEl = document.getElementById("active-kid-progress");
-
-      if (nameEl) nameEl.textContent = activeKid.name + (activeKid.present === false ? " (En pause)" : "");
-      if (starsEl) starsEl.textContent = activeKid.stars;
-      if (lvlEl) lvlEl.textContent = `Niveau ${level}`;
-      if (xpEl) xpEl.textContent = `${currentLevelXp}/10 XP`;
-      if (progEl) progEl.style.width = `${progressPercent}%`;
-
-      const todayKey = getDailyKey();
-      if (state.completedToday && state.completedToday.length > 0) {
-        state.completedToday = state.completedToday.filter(c => c.date === todayKey);
-      }
+      const starsEl = document.getElementById("active-kid-stars");
+      
+      if(nameEl) nameEl.textContent = activeKid.name;
+      if(levelEl) { levelEl.textContent = `Niveau ${lvl}`; levelEl.className = 'badge progress-level-badge'; }
+      if(xpEl) xpEl.textContent = `${xp} / ${nextThreshold} XP`;
+      if(progEl) progEl.style.width = `${pct}%`;
+      // Optionnel: Garder l'affichage de l'XP en grand
+      if(starsEl) starsEl.textContent = activeKid.stars !== undefined ? activeKid.stars : xp; 
 
       const kidMissions = state.missions.filter(m => {
-        if (m.minAge && kidAge < m.minAge) return false;
-        if (m.maxAge && kidAge > m.maxAge) return false;
-        if (m.kidId !== 0 && String(m.kidId) !== String(window.activeKidId)) return false;
-        if (isChild && m.isRotating) {
-          const currentKid = getMissionTurnKid(m);
-          if (!currentKid || String(currentKid.id) !== String(window.activeKidId)) return false;
-        }
-        const isDoneToday = (state.completedToday || []).some(c => 
-          String(c.missionId) === String(m.id) && 
-          (m.isRotating ? true : String(c.kidId) === String(window.activeKidId)) && 
-          c.date === todayKey
-        );
-        if (isDoneToday) return false;
+        if (m.kidId !== 0 && String(m.kidId) !== String(activeKid.id)) return false;
+        if (m.minAge && age < m.minAge) return false;
+        if (m.maxAge && age > m.maxAge) return false;
+        if (m.isRotating && m.currentKidId !== activeKid.id) return false;
         return true;
       });
 
@@ -762,101 +354,58 @@ function renderKids() {
       if (missionsContainer) {
         missionsContainer.innerHTML = kidMissions.map(m => {
           const isPending = state.pending && state.pending.some(p => String(p.missionId) === String(m.id) && String(p.kidId) === String(window.activeKidId));
-          const btnHtml = isPending 
-            ? '<span class="badge" style="background:var(--surface); color:var(--yellow); font-size:0.8rem; padding:6px 10px;">⏳ En attente</span>'
-            : `<button class="btn-primary btn-small" onclick="submitMission(${m.id})">Fait !</button>`;
+          const isCompleted = state.completedToday && state.completedToday.some(c => c.missionId === m.id && c.kidId === activeKid.id && c.date === today);
+          
+          let btnHtml = "";
+          const effortXp = Math.max(1, Math.round((m.points||10) * 0.5));
+          const fullXp = m.points||10;
 
-          const isDailyOrder = m.isDailyOrder || (m.title && (m.title.toLowerCase().includes('douche') || m.title.toLowerCase().includes('bain')));
-
-          if (isDailyOrder) {
-            const eligibleKids = getEligibleKidsForMission(m);
-            const myRank = getKidDailyOrder(window.activeKidId, eligibleKids);
-            const rankLabel = getOrderLabel(myRank);
-
-            const orderList = eligibleKids.map(k => {
-              const r = getKidDailyOrder(k.id, eligibleKids);
-              return { name: k.name, rank: r, isMe: String(k.id) === String(window.activeKidId) };
-            }).sort((a,b) => a.rank - b.rank);
-
-            const orderSummary = orderList.map(item => `${item.rank}e: ${item.name}`).join(' • ');
-
-            return `
-              <div class="task-item">
-                <div class="task-info">
-                  <span style="font-size: 1.6rem;">${m.icon}</span>
-                  <div>
-                    <div class="task-title">
-                      ${m.title}
-                      <span class="badge" style="background:rgba(56, 189, 248, 0.2); color:var(--primary); margin-left:6px; font-weight:800;">
-                        🚿 ${rankLabel} aujourd'hui
-                      </span>
-                    </div>
-                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
-                      Ordre du jour : ${orderSummary}
-                    </div>
-                    <div class="task-reward">+${m.points} ⭐</div>
-                  </div>
-                </div>
-                ${btnHtml}
-              </div>
-            `;
+          if (isCompleted) {
+             btnHtml = `<div style="font-size:0.8rem; color:#10b981; font-weight:700; margin-top:6px;">✓ Validé aujourd'hui</div>`;
+          } else if (isPending) {
+             btnHtml = `<div style="font-size:0.8rem; color:#f59e0b; font-weight:700; margin-top:6px;">⏳ En attente parentale</div>`;
+          } else {
+             btnHtml = `
+              <div class="task-progress-actions" style="display:flex; gap:8px; margin-top:8px;">
+                <button class="btn-effort" onclick="submitMissionProgress(${m.id}, 'effort')">
+                  🌱 J'ai essayé (+${effortXp} XP)
+                </button>
+                <button class="btn-effort btn-effort-done" onclick="submitMissionProgress(${m.id}, 'success')">
+                  🚀 Réussi seul (+${fullXp} XP)
+                </button>
+              </div>`;
           }
 
-          if (m.isRotating) {
-            const currentKid = getMissionTurnKid(m);
-            const isMyTurn = currentKid && String(currentKid.id) === String(window.activeKidId);
-
-            if (isMyTurn) {
-              return `
-                <div class="task-item">
-                  <div class="task-info">
-                    <span style="font-size: 1.6rem;">${m.icon}</span>
-                    <div>
-                      <div class="task-title">
-                        ${m.title} 
-                        <span class="badge badge-cat" style="margin-left:4px;">🔄 À ton tour !</span>
-                      </div>
-                      <div class="task-reward">+${m.points} ⭐</div>
-                    </div>
-                  </div>
-                  ${btnHtml}
-                </div>
-              `;
-            } else {
-              return `
-                <div class="task-item" style="opacity: 0.65;">
-                  <div class="task-info">
-                    <span style="font-size: 1.6rem;">${m.icon}</span>
-                    <div>
-                      <div class="task-title">${m.title}</div>
-                      <div style="font-size: 0.8rem; color: var(--text-muted);">
-                        ⏳ Au tour de <b>${currentKid ? currentKid.name : '...'}</b>
-                      </div>
-                    </div>
-                  </div>
-                  <span class="badge" style="background: var(--surface); color: var(--text-muted); font-size: 0.78rem;">Pas ton tour</span>
-                </div>
-              `;
+          let extraHtml = "";
+          if (m.isDailyOrder || (m.title && m.title.toLowerCase().includes('douche'))) {
+            const elig = getEligibleKidsForMission(m);
+            if(elig.length > 1) {
+              const r = getKidDailyOrder(activeKid.id, elig);
+              extraHtml = `<div style="font-size: 0.75rem; color: var(--text-muted); font-weight:bold; margin-top:4px;">▶ C'est ton tour : Tu es le ${r === 1 ? '1er' : r + 'ème'}</div>`;
             }
           }
 
           return `
-            <div class="task-item">
-              <div class="task-info">
-                <span style="font-size: 1.6rem;">${m.icon}</span>
-                <div>
-                  <div class="task-title">${m.title}</div>
-                  <div class="task-reward">+${m.points} ⭐</div>
+            <div class="task-card ${isCompleted ? 'task-done' : ''}">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:1.8rem;">${m.icon}</span>
+                <div style="flex:1;">
+                  <div style="font-weight:700;">${m.title}</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted);">Progression : +${fullXp} XP max</div>
+                  ${extraHtml}
                 </div>
               </div>
               ${btnHtml}
-            </div>
-          `;
-        }).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucune tâche pour aujourd'hui.</p>`;
+            </div>`;
+        }).join("");
       }
 
-      const individualRewards = state.rewards.filter(r => !r.isCommon);
+      // Rendu des récompenses (Reste identique mais basé sur l'XP/Stars)
       const rewardsContainer = document.getElementById("tab-rewards-sub");
+      const famRewardsContainer = document.getElementById("family-rewards-list");
+      const individualRewards = state.rewards.filter(r => !r.isCommon);
+      const familyRewards = state.rewards.filter(r => r.isCommon);
+
       if (rewardsContainer) {
         rewardsContainer.innerHTML = individualRewards.map(r => `
           <div class="task-item">
@@ -864,159 +413,109 @@ function renderKids() {
               <span style="font-size: 1.6rem;">${r.icon}</span>
               <div>
                 <div class="task-title">${r.title}</div>
-                <div class="task-reward">${r.cost} ⭐</div>
+                <div class="task-reward">${r.cost} XP</div>
               </div>
             </div>
-            <button class="btn-primary btn-small" onclick="claimReward(${r.id}, false)" ${activeKid.stars < r.cost ? 'disabled style="opacity:0.5;"' : ''}>
-              Obtenir
+            <button class="btn-primary btn-small" onclick="claimReward(${r.id}, false)" ${(activeKid.stars !== undefined ? activeKid.stars : activeKid.xp) < r.cost ? 'disabled style="opacity:0.5;"' : ''}>
+              Choisir
             </button>
-          </div>
-        `).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Boutique vide.</p>`;
+          </div>`).join("");
       }
-    }
-
-    const commonStarsEl = document.getElementById("common-stars");
-    if (commonStarsEl) commonStarsEl.textContent = state.commonStars || 0;
-
-    const familyRewards = state.rewards.filter(r => r.isCommon);
-    const famRewardsContainer = document.getElementById("family-rewards-list");
-    if (famRewardsContainer) {
-      famRewardsContainer.innerHTML = familyRewards.map(r => `
-        <div class="task-item">
-          <div class="task-info">
-            <span style="font-size: 1.6rem;">${r.icon}</span>
-            <div>
-              <div class="task-title">${r.title}</div>
-              <div class="task-reward" style="color:#ec4899;">${r.cost} ⭐ (Famille)</div>
-            </div>
-          </div>
-          <button class="btn-primary btn-small" onclick="claimReward(${r.id}, true)" ${(state.commonStars || 0) < r.cost ? 'disabled style="opacity:0.5;"' : ''}>
-            Débloquer
-          </button>
-        </div>
-      `).join("") || `<p style="text-align:center; padding: 20px; color:var(--text-muted);">Aucun cadeau familial.</p>`;
-    }
-  } else {
-    // --- VUE PARENT ---
-    const pendingContainer = document.getElementById("pending-list");
-    if (pendingContainer) {
-      if (!state.pending || state.pending.length === 0) {
-        pendingContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.88rem; text-align:center; padding: 10px;">✅ Aucune tâche en attente.</p>`;
-      } else {
-        pendingContainer.innerHTML = state.pending.map(p => `
-          <div class="task-item" style="border-left: 4px solid var(--yellow);">
-            <div>
-              <b>${p.kidName}</b> : ${p.title}
-              <div style="font-size: 0.8rem; color: var(--yellow); font-weight: bold;">+${p.points} étoile(s)</div>
-            </div>
-            <div style="display:flex; gap:6px;">
-              <button class="btn-primary btn-small" onclick="validatePendingTask(${p.id})">Valider</button>
-              <button class="btn-danger btn-small" onclick="refusePendingTask(${p.id})">Refuser</button>
-            </div>
-          </div>
-        `).join("");
-      }
-    }
-
-    const presenceContainer = document.getElementById("config-presence-list");
-    if (presenceContainer) {
-      presenceContainer.innerHTML = state.kids.map(k => `
-        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border);">
-          <span>${k.avatar} <b>${k.name}</b></span>
-          <button class="${k.present === false ? 'btn-danger' : 'btn-nav'} btn-small" onclick="toggleKidPresence(${k.id})">
-            ${k.present === false ? 'En pause (absent)' : 'Actif (présent)'}
-          </button>
-        </div>
-      `).join("");
-    }
-
-    const adjustContainer = document.getElementById("adjust-stars-list");
-    if (adjustContainer) {
-      adjustContainer.innerHTML = state.kids.map(k => `
-        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border);">
-          <span>${k.avatar} <b>${k.name}</b> : <b style="color:var(--yellow);">${k.stars}</b> ⭐</span>
-          <div style="display:flex; gap:6px;">
-            <button class="btn-nav btn-small" onclick="adjustKidStars(${k.id}, -1)">-1</button>
-            <button class="btn-nav btn-small" onclick="adjustKidStars(${k.id}, 1)">+1</button>
-          </div>
-        </div>
-      `).join("");
-    }
-
-    const configKidsContainer = document.getElementById("config-kids-list");
-    if (configKidsContainer) {
-      configKidsContainer.innerHTML = state.kids.map(k => `
-        <div class="task-item">
-          <span>${k.avatar} <b>${k.name}</b> (${getAge(k.birthDate)} ans)</span>
-          <div style="display:flex; gap:6px;">
-            <button class="btn-nav btn-small" onclick="editKid(${k.id})">✏️</button>
-            <button class="btn-danger btn-small" onclick="removeKid(${k.id})">✕</button>
-          </div>
-        </div>
-      `).join("");
-    }
-
-    const configMissionsContainer = document.getElementById("config-missions-list");
-    if (configMissionsContainer) {
-      configMissionsContainer.innerHTML = state.missions.map(m => {
-        let extraInfo = '';
-        const isDailyOrder = m.isDailyOrder || (m.title && (m.title.toLowerCase().includes('douche') || m.title.toLowerCase().includes('bain')));
-        if (isDailyOrder) {
-          const eligibleKids = getEligibleKidsForMission(m);
-          const orderSummary = eligibleKids.map(k => {
-            const r = getKidDailyOrder(k.id, eligibleKids);
-            return `${r}e: ${k.name}`;
-          }).sort().join(' ➔ ');
-          extraInfo = `
-            <div style="font-size:0.82rem; color:var(--primary); margin-top:4px;">
-              🔢 Ordre aujourd'hui : <b>${orderSummary || 'Aucun enfant'}</b>
-            </div>
-          `;
-        } else if (m.isRotating) {
-          const currentKid = getMissionTurnKid(m);
-          const kidName = currentKid ? currentKid.name : 'Aucun';
-          extraInfo = `
-            <div style="font-size:0.82rem; color:var(--primary); margin-top:4px;">
-              🔄 Tour actuel : <b>${kidName}</b>
-              <button class="btn-nav btn-small" style="margin-left:8px; padding:2px 8px; font-size:0.75rem;" onclick="passMissionTurn(${m.id})" title="Passer au prochain enfant">⏭️ Tour suivant</button>
-            </div>
-          `;
-        }
-        let ageLabel = '';
-        if (m.minAge || m.maxAge) {
-          ageLabel = `<span style="font-size:0.75rem; color:var(--text-muted); margin-left:6px;">(${m.minAge ? m.minAge + ' ans min' : ''}${m.minAge && m.maxAge ? ' - ' : ''}${m.maxAge ? m.maxAge + ' ans max' : ''})</span>`;
-        }
-        return `
-          <div class="task-item" style="flex-direction:column; align-items:flex-start; gap:4px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-              <span>${m.icon} <b>${m.title}</b> (${m.points} ⭐) ${ageLabel} ${m.isRotating ? '<span class="badge badge-cat">🔄 Tourne</span>' : ''} ${isDailyOrder ? '<span class="badge badge-cat">🔢 Ordre douche</span>' : ''}</span>
-              <div style="display:flex; gap:6px;">
-                <button class="btn-nav btn-small" onclick="editMission(${m.id})">✏️</button>
-                <button class="btn-danger btn-small" onclick="removeMission(${m.id})">✕</button>
+      
+      if (famRewardsContainer) {
+        famRewardsContainer.innerHTML = familyRewards.map(r => `
+          <div class="task-item">
+            <div class="task-info">
+              <span style="font-size: 1.6rem;">${r.icon}</span>
+              <div>
+                <div class="task-title">${r.title}</div>
+                <div class="task-reward" style="color:#ec4899;">${r.cost} XP (Famille)</div>
               </div>
             </div>
-            ${extraInfo}
-          </div>
-        `;
-      }).join("");
+            <button class="btn-primary btn-small" onclick="claimReward(${r.id}, true)" ${(state.commonStars || 0) < r.cost ? 'disabled style="opacity:0.5;"' : ''}>
+              Débloquer
+            </button>
+          </div>`).join("");
+      }
+      const cs = document.getElementById("common-stars"); if (cs) cs.textContent = state.commonStars || 0;
     }
-
-    const configRewardsContainer = document.getElementById("config-rewards-list");
-    if (configRewardsContainer) {
-      configRewardsContainer.innerHTML = state.rewards.map(r => `
-        <div class="task-item">
-          <span>${r.icon} <b>${r.title}</b> (${r.cost} ⭐ • ${r.isCommon ? 'Famille' : 'Solo'})</span>
-          <div style="display:flex; gap:6px;">
-            <button class="btn-nav btn-small" onclick="editReward(${r.id})">✏️</button>
-            <button class="btn-danger btn-small" onclick="removeReward(${r.id})">✕</button>
-          </div>
-        </div>
-      `).join("");
-    }
-
-    showParentSubpage(window.parentCurrentSubpage || 'main');
   }
-}
 
-window.renderKids = renderKids;
-document.addEventListener("DOMContentLoaded", renderKids);
+  // --- VUE PARENTS ---
+  if (window.isParentMode) {
+    document.getElementById("parent-main-view").classList.toggle("hidden", window.parentCurrentSubpage !== null);
+    document.getElementById("parent-page-kids").classList.toggle("hidden", window.parentCurrentSubpage !== 'kids');
+    document.getElementById("parent-page-missions").classList.toggle("hidden", window.parentCurrentSubpage !== 'missions');
+    document.getElementById("parent-page-rewards").classList.toggle("hidden", window.parentCurrentSubpage !== 'rewards');
+
+    if (window.parentCurrentSubpage === null) {
+      const pendingContainer = document.getElementById("pending-list");
+      if (pendingContainer) {
+        if (!state.pending || state.pending.length === 0) {
+          pendingContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.88rem; text-align:center; padding: 10px;">✅ Aucune tâche en attente.</p>`;
+        } else {
+          pendingContainer.innerHTML = state.pending.map(p => `
+            <div class="task-item" style="border-left: 4px solid var(--yellow);">
+              <div>
+                <b>${p.kidName}</b> : ${p.title}
+                <div style="font-size: 0.75rem; color: var(--text-muted);"><i>${p.effortLabel || "Action accomplie"}</i></div>
+                <div style="font-size: 0.8rem; color: var(--yellow); font-weight: bold;">+${p.points} XP</div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button class="btn-primary btn-small" onclick="validatePendingTask(${p.id})">Valider</button>
+                <button class="btn-danger btn-small" onclick="refusePendingTask(${p.id})">Refuser</button>
+              </div>
+            </div>`).join("");
+        }
+      }
+      
+      const pcs = document.getElementById("parent-common-stars"); if (pcs) pcs.textContent = state.commonStars || 0;
+      
+      const presenceContainer = document.getElementById("config-presence-list");
+      if (presenceContainer) {
+        presenceContainer.innerHTML = state.kids.map(k => `
+          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+            <span>${k.avatar} <b>${k.name}</b></span>
+            <button class="${k.present === false ? 'btn-danger' : 'btn-nav'} btn-small" onclick="toggleKidPresence(${k.id})">
+              ${k.present === false ? 'En pause (absent)' : 'Actif (présent)'}
+            </button>
+          </div>`).join("");
+      }
+
+      const adjustContainer = document.getElementById("adjust-stars-list");
+      if (adjustContainer) {
+        adjustContainer.innerHTML = state.kids.map(k => `
+          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+            <span>${k.avatar} <b>${k.name}</b> : <b style="color:var(--yellow);">${k.xp || k.stars}</b> XP</span>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-nav btn-small" onclick="adjustKidStars(${k.id}, -1)">-1</button>
+              <button class="btn-nav btn-small" onclick="adjustKidStars(${k.id}, +1)">+1</button>
+            </div>
+          </div>`).join("");
+      }
+    }
+
+    if (window.parentCurrentSubpage === 'kids') {
+      const configKidsContainer = document.getElementById("config-kids-list");
+      if (configKidsContainer) {
+        configKidsContainer.innerHTML = state.kids.map(k => `
+          <div class="task-item">
+            <span>${k.avatar} <b>${k.name}</b> (${getAge(k.birthDate)} ans)</span>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-nav btn-small" onclick="editKid(${k.id})">✏️</button>
+              <button class="btn-danger btn-small" onclick="removeKid(${k.id})">✕</button>
+            </div>
+          </div>`).join("");
+      }
+    }
+  }
+};
+
+// Injection Globale (Pour que index.html puisse appeler ces fonctions si besoin)
+window.state = state;
+
+// Démarrage
+window.addEventListener('DOMContentLoaded', () => {
+  renderKids();
+  window.switchKidSubTab('missions');
+});
