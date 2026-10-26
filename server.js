@@ -178,7 +178,7 @@ Réponds OBLIGATOIREMENT avec ce JSON valide :
   }
 });
 
-// Route IA : Suggérer la semaine complète (14 créneaux obligatoires)
+// Route IA : Suggérer la semaine complète
 app.post('/api/ai/suggest-week', async (req, res) => {
   try {
     const { slots } = req.body;
