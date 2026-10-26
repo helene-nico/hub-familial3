@@ -680,6 +680,8 @@ window.saveRewardForm = function(e) {
 
   if (!title) return;
 
+  if (!state.rewards) state.rewards = [];
+
   if (editId) {
     const r = state.rewards.find(x => String(x.id) === String(editId));
     if (r) {
@@ -700,6 +702,9 @@ window.saveRewardForm = function(e) {
 
   saveState();
   closeRewardModal();
+  
+  if (typeof renderParentRewardsConfig === 'function') renderParentRewardsConfig();
+  if (typeof renderKids === 'function') renderKids();
 };
 
 window.addReward = () => openRewardModal();
