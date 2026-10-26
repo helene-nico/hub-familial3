@@ -674,19 +674,30 @@ function renderRecurringList() {
     `;
   }).join('');
 
-  // Calcul du solde net des récurrences (revenus - dépenses)
-  const total = recurringRules.reduce((sum, r) => sum + (r.type === 'income' ? r.amount : -r.amount), 0);
+  const totalIncome = recurringRules.filter(r => r.type === 'income').reduce((sum, r) => sum + r.amount, 0);
+  const totalExpense = recurringRules.filter(r => r.type !== 'income').reduce((sum, r) => sum + r.amount, 0);
+  const netTotal = totalIncome - totalExpense;
 
-  const totalHtml = `
-    <div style="background:var(--bg); border:1px solid var(--border); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-weight:700;">
-      <div>Total</div>
-      <div class="${total >= 0 ? 'positive' : 'negative'}">
-        ${total > 0 ? '+' : ''}${formatMoney(total)}
+  const summaryHtml = `
+    <div style="background:var(--bg); border:1px solid var(--border); padding:12px; border-radius:8px; margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="color:var(--text-muted);">Total des revenus</span>
+        <span class="positive" style="font-weight:600;">+${formatMoney(totalIncome)}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="color:var(--text-muted);">Total des dépenses</span>
+        <span class="negative" style="font-weight:600;">-${formatMoney(totalExpense)}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:8px; font-weight:700;">
+        <span>Total restant</span>
+        <span class="${netTotal >= 0 ? 'positive' : 'negative'}">
+          ${netTotal > 0 ? '+' : ''}${formatMoney(netTotal)}
+        </span>
       </div>
     </div>
   `;
 
-  list.innerHTML = itemsHtml + totalHtml;
+  list.innerHTML = itemsHtml + summaryHtml;
 }
 
 window.deleteRecurringRule = (id) => {
