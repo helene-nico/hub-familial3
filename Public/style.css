@@ -1,342 +1,1291 @@
-// --- CRYPTO & PIN ---
-async function hashPin(pin) {
-  if (!pin || pin.trim() === '') return '';
-  const encoder = new TextEncoder();
-  const data = encoder.encode(pin.trim());
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+/* ==========================================================================
+   VARIABLES ET THÈMES GLOBAUX
+   ========================================================================== */
+:root {
+  --bg: #090d16;
+  --card-bg: #111827;
+  --card-hover: #1f293d;
+  --surface: #1e293b;
+  --border: #1e293b;
+  --border-focus: #38bdf8;
+  
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-inverse: #090d16;
+
+  --primary: #38bdf8;
+  --primary-text: #000000;
+  --green: #22c55e;
+  --green-bg: rgba(34, 197, 94, 0.12);
+  --red: #f43f5e;
+  --red-bg: rgba(244, 63, 94, 0.12);
+  --purple: #a855f7;
+  --purple-bg: rgba(168, 85, 247, 0.12);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234, 179, 8, 0.12);
+
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
 }
 
-async function verifyPin(inputPin, storedPin) {
-  if (!storedPin) return true;
-  if (/^[a-f0-9]{64}$/i.test(storedPin)) {
-    const hashedInput = await hashPin(inputPin);
-    return hashedInput === storedPin;
-  }
-  return inputPin.trim() === storedPin.trim();
+body.light-mode {
+  --bg: #f8fafc;
+  --card-bg: #ffffff;
+  --card-hover: #f1f5f9;
+  --surface: #f1f5f9;
+  --border: #e2e8f0;
+  --border-focus: #0284c7;
+  
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-inverse: #f8fafc;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
-let failedPinAttempts = 0;
-let lockoutUntil = 0;
-
-// Chargement initial des utilisateurs
-let appUsers = JSON.parse(localStorage.getItem('app_users')) || [
-  { id: 'u1', name: 'Papa', role: 'parent', pin: '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0', avatar: '👨' },
-  { id: 'u2', name: 'Maman', role: 'parent', pin: '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0', avatar: '👩' },
-  { id: 'u3', name: 'Enfant 1', role: 'child', pin: '', avatar: '👧' }
-];
-
-let currentUser = null;
-let pendingLoginUserId = null;
-
-// --- CONNEXION ---
-function showLoginScreen() {
-  const screen = document.getElementById('login-screen');
-  const container = document.getElementById('app-container');
-  if (screen) screen.style.display = 'flex';
-  if (container) container.classList.add('hidden');
-
-  appUsers = JSON.parse(localStorage.getItem('app_users')) || appUsers;
-
-  const grid = document.getElementById('loginUsersGrid');
-  if (!grid) return;
-
-  grid.innerHTML = appUsers.map(u => `
-    <div class="user-card" onclick="attemptLogin('${u.id}')">
-      <div class="avatar">${u.avatar || '👤'}</div>
-      <div class="name">${u.name}</div>
-      <div class="role">${u.role === 'parent' ? 'Parent' : 'Enfant'}</div>
-    </div>
-  `).join('');
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-function attemptLogin(id) {
-  const u = appUsers.find(x => x.id === id);
-  if (!u) return;
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  font-size: 15px;
+  padding: 14px;
+  min-height: 100vh;
+}
 
-  if (Date.now() < lockoutUntil) {
-    const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
-    alert(`Accès temporairement bloqué. Réessaie dans ${remaining} s.`);
-    return;
+.container {
+  max-width: 980px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ==========================================================================
+   ÉCRAN DE CONNEXION
+   ========================================================================== */
+#login-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.login-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 36px 28px;
+  text-align: center;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+
+.users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.user-card {
+  background: var(--surface);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 18px 10px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--primary);
+  background: var(--card-hover);
+}
+
+.user-card .avatar {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.user-card .name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.user-card .role {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   BARRE SUPÉRIEURE UNIQUE (ADAPTÉE SMARTPHONE)
+   ========================================================================== */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  padding: 6px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+}
+
+.user-badge .avatar {
+  font-size: 1.15rem;
+}
+
+.user-badge .name {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.btn-icon {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+}
+
+.btn-nav {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-danger {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid var(--red);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-small {
+  padding: 5px 10px;
+  font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   TABLEAU DE BORD (2 COLONNES MOBILES STRICTES)
+   ========================================================================== */
+.dashboard-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 12px !important;
+}
+
+.dash-widget {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  min-height: 95px;
+  box-shadow: var(--shadow-sm);
+}
+
+.dash-widget-icon {
+  font-size: 2rem;
+  margin-right: 10px;
+}
+
+.dash-widget-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   MODULE MISSIONS & ÉTOILES (REFONTE MOBILE COMPLÈTE)
+   ========================================================================== */
+.kids-bar {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 6px 2px 14px 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.kid-tab {
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 90px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kid-tab.active {
+  border-color: var(--primary);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.kid-tab .avatar { font-size: 1.8rem; }
+.kid-tab .name { font-weight: 700; font-size: 0.85rem; margin-top: 2px; }
+.kid-tab .age { font-size: 0.72rem; color: var(--text-muted); }
+
+.kid-score-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.xp-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: var(--surface);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.xp-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.kids-subtabs-nav {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.kids-subtab-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 10px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+
+.kids-subtab-btn.active {
+  background: var(--surface);
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+.list-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.task-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.task-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.task-reward {
+  color: var(--yellow);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.common-pot-card {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(236, 72, 153, 0.05));
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+}
+
+/* Espace Parents Admin */
+.parent-admin-banner {
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid var(--red);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.parent-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.parent-section-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.parent-subpage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card-bg);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+/* ==========================================================================
+   MODULES COMPTES & FINANCES / DOCUMENTS / MODALES
+   ========================================================================== */
+.accounts-overview-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.accounts-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.card-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.card-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.val-real { color: var(--primary); }
+.val-forecast { color: var(--purple); }
+
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.88rem;
+}
+
+th, td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 14px;
+}
+
+.modal {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: var(--shadow-lg);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.form-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+input, select, textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.95rem;
+  width: 100%;
+}
+
+.pin-input {
+  text-align: center;
+  letter-spacing: 0.3em;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badge-cat {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--primary);
+}
+
+.dropdown-menu {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-item {
+  padding: 10px 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   MODULE REPAS & MENUS
+   ========================================================================== */
+.meals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.meal-day-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.meal-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--primary);
+}
+
+.meal-slot-box {
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body.light-mode .meal-slot-box {
+  background: #f1f5f9;
+}
+
+.meal-slot-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+}
+.meal-slot-label.slot-midi { color: #f59e0b; }
+.meal-slot-label.slot-soir { color: #818cf8; }
+
+.meal-slot-content {
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.meal-slot-content.empty {
+  border: 1px dashed var(--border);
+  align-items: center;
+  padding: 10px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.meal-slot-content.filled {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+}
+
+/* ==========================================================================
+   EN-TÊTE DU TABLEAU DE BORD & BOUTON PERSONNALISER
+   ========================================================================== */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.dashboard-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.btn-customize {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-customize:hover {
+  background: var(--card-hover);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-customize:active {
+  transform: scale(0.97);
+}
+
+.btn-customize-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ==========================================================================
+   MODALE DE PERSONNALISATION (RESPONSIVE PC & MOBILE)
+   ========================================================================== */
+.modal-custom-dash {
+  width: 100% !important;
+  max-width: 420px !important;
+  padding: 22px !important;
+  box-sizing: border-box !important;
+}
+
+.modal-header-clean {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  gap: 10px;
+}
+
+.modal-close-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.modal-close-btn:hover {
+  background: var(--card-hover);
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.dash-custom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.custom-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  gap: 12px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.custom-card-item:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.custom-card-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.custom-card-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.custom-card-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.custom-card-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* Interrupteurs (Switchs style iOS) */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: var(--border);
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 9999px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #ffffff;
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+input:checked + .slider {
+  background-color: var(--primary);
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* ==========================================================================
+   OPTIMISATIONS SPÉCIFIQUES SMARTPHONE (< 600PX)
+   ========================================================================== */
+@media (max-width: 600px) {
+  body {
+    padding: 8px;
   }
 
-  if (u.pin && u.pin.trim() !== '') {
-    pendingLoginUserId = u.id;
-    const pinTitle = document.getElementById('loginPinTitle');
-    if (pinTitle) pinTitle.textContent = `Bonjour ${u.name}`;
-    const pinInput = document.getElementById('login-pin-input');
-    if (pinInput) pinInput.value = '';
-    const pinModal = document.getElementById('pin-login-modal');
-    if (pinModal) pinModal.style.display = 'flex';
-    setTimeout(() => pinInput?.focus(), 50);
-  } else {
-    loginAs(u);
+  .top-bar {
+    padding: 8px 10px;
+  }
+
+  .dash-widget {
+    flex-direction: column !important;
+    text-align: center;
+    padding: 12px 6px !important;
+  }
+
+  .dash-widget-icon {
+    margin-right: 0 !important;
+    margin-bottom: 4px;
+    font-size: 1.6rem !important;
+  }
+
+  .dash-widget-title {
+    font-size: 0.82rem !important;
+  }
+
+  .kids-subtabs-nav {
+    gap: 4px;
+  }
+
+  .kids-subtab-btn {
+    font-size: 0.78rem;
+    padding: 8px 4px;
+  }
+
+  .task-item {
+    padding: 10px;
+  }
+
+  .task-title {
+    font-size: 0.88rem;
+  }
+
+  .modal {
+    padding: 16px;
+  }
+
+  .dashboard-header {
+    margin-bottom: 14px;
+  }
+  
+  .dashboard-title {
+    font-size: 1.15rem;
+  }
+  
+  .btn-customize {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    gap: 5px;
+  }
+  
+  .modal-custom-dash {
+    width: 94% !important;
+    max-width: 94% !important;
+    padding: 18px 14px !important;
+  }
+  
+  .custom-card-item {
+    padding: 10px 12px;
+  }
+  
+  .custom-card-icon {
+    font-size: 1.4rem;
+  }
+  
+  .custom-card-title {
+    font-size: 0.9rem;
+  }
+  
+  .custom-card-desc {
+    font-size: 0.72rem;
   }
 }
 
-function closeLoginPinModal() {
-  const modal = document.getElementById('pin-login-modal');
-  if (modal) modal.style.display = 'none';
-  pendingLoginUserId = null;
+/* ==========================================================================
+   ADAPTATIONS BUDGET (MOBILE & CHECKBOX)
+   ========================================================================== */
+
+/* Style des cases à cocher (dont "Afficher les opérations pointées") */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text);
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s ease;
 }
 
-async function submitLoginPin() {
-  if (Date.now() < lockoutUntil) {
-    const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
-    alert(`Accès temporairement bloqué. Réessaie dans ${remaining} s.`);
-    return;
+.checkbox-label:hover {
+  border-color: var(--primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Conteneur de l'interrupteur au-dessus du tableau */
+.filter-cleared-container {
+  display: flex; 
+  justify-content: flex-end; 
+  align-items: center; 
+  margin: 16px 0 10px 0;
+}
+
+/* Tableau Responsive avec Scroll horizontal forcé */
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  -webkit-overflow-scrolling: touch; /* Défilement fluide sur iOS */
+  width: 100%;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.88rem;
+  min-width: 500px; /* Force une largeur minimum pour ne pas écraser les colonnes */
+}
+
+th, td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap; /* Empêche le texte de s'empiler dans les colonnes étroites */
+}
+
+/* Colonne Description libre */
+td:nth-child(3) {
+  white-space: normal; /* Autorise le retour à la ligne sur la description */
+  min-width: 150px;
+}
+
+/* Adaptation pour téléphones (< 600px) */
+@media (max-width: 600px) {
+  /* Le bouton s'étend sur toute la largeur sur mobile */
+  .filter-cleared-container {
+    justify-content: stretch;
+  }
+  
+  .filter-cleared-container .checkbox-label {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Ligne d'en-tête du détail d'un compte */
+  #budget-detail-view .accounts-overview-section {
+    padding: 8px !important;
+  }
+  
+  /* Sélecteur de mois ajusté */
+  #currentMonthLabel {
+    min-width: 100px !important;
+    font-size: 0.95rem !important;
+  }
+  
+  /* Cartes Solde Réel / Prévisionnel */
+  .grid-cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  
+  .card-value {
+    font-size: 1.25rem;
   }
 
-  const pinInput = document.getElementById('login-pin-input');
-  const enteredPin = pinInput ? pinInput.value : '';
-  const u = appUsers.find(x => x.id === pendingLoginUserId);
-  if (!u) return;
+   /* ==========================================================================
+   AFFICHAGE MOBILE COMPACT DES OPÉRATIONS (SANS SCROLL HORIZONTAL)
+   ========================================================================== */
+@media (max-width: 600px) {
+  /* Supprime le débordement horizontal */
+  #tab-comptes .table-container {
+    overflow-x: visible !important;
+    background: transparent !important;
+    border: none !important;
+  }
 
-  const isCorrect = await verifyPin(enteredPin, u.pin);
+  #tab-comptes table {
+    min-width: 0 !important;
+    width: 100% !important;
+    display: block !important;
+    border: none !important;
+  }
 
-  if (isCorrect) {
-    failedPinAttempts = 0;
-    if (u.pin && !/^[a-f0-9]{64}$/i.test(u.pin)) {
-      u.pin = await hashPin(enteredPin);
-      localStorage.setItem('app_users', JSON.stringify(appUsers));
-      if (typeof window.saveToUpstash === 'function') window.saveToUpstash('app_users', appUsers);
-    }
-    closeLoginPinModal();
-    loginAs(u);
-  } else {
-    failedPinAttempts++;
-    if (failedPinAttempts >= 5) {
-      lockoutUntil = Date.now() + 30000;
-      alert("Trop d'erreurs. Verrouillage pendant 30 secondes.");
-      closeLoginPinModal();
-    } else {
-      alert(`Code PIN erroné (${failedPinAttempts}/5).`);
-      if (pinInput) {
-        pinInput.value = '';
-        pinInput.focus();
-      }
-    }
+  /* Masque les en-têtes de colonnes superflus sur mobile */
+  #tab-comptes thead {
+    display: none !important;
+  }
+
+  #tab-comptes tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  /* Transforme chaque ligne en carte compacte */
+  #tab-comptes tbody tr {
+    display: grid !important;
+    grid-template-columns: 28px 1fr auto !important;
+    align-items: center !important;
+    gap: 3px 10px !important;
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 10px 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  #tab-comptes tbody tr td {
+    padding: 0 !important;
+    border: none !important;
+    white-space: normal !important;
+  }
+
+  /* 1. Case à cocher (Pointé) */
+  #tab-comptes tbody tr td:nth-child(1) {
+    grid-column: 1 !important;
+    grid-row: 1 / span 2 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* 2. Titre & badge de catégorie */
+  #tab-comptes tbody tr td:nth-child(3) {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    font-size: 0.92rem !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+  }
+
+  /* 3. Montant (visible immédiatement en haut à droite) */
+  #tab-comptes tbody tr td:nth-child(4) {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+    text-align: right !important;
+    white-space: nowrap !important;
+  }
+
+  /* 4. Date (sous le titre) */
+  #tab-comptes tbody tr td:nth-child(2) {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    font-size: 0.75rem !important;
+    color: var(--text-muted) !important;
+  }
+
+  /* 5. Boutons Modifier / Supprimer (sous le montant) */
+  #tab-comptes tbody tr td:nth-child(5) {
+    grid-column: 3 !important;
+    grid-row: 2 !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+  }
+
+  #tab-comptes tbody tr td:nth-child(5) div {
+    display: flex !important;
+    gap: 4px !important;
+  }
+
+  #tab-comptes tbody tr td:nth-child(5) button {
+    padding: 2px 7px !important;
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Message si aucune opération */
+  #tab-comptes tbody tr td[colspan] {
+    grid-column: 1 / -1 !important;
+    display: block !important;
+    text-align: center !important;
+    padding: 20px 10px !important;
+    color: var(--text-muted) !important;
+  }
+}
+  .card-title {
+    font-size: 0.65rem;
   }
 }
 
-function loginAs(user) {
-  currentUser = user;
-  sessionStorage.setItem('activeUserId', user.id);
-
-  const loginScr = document.getElementById('login-screen');
-  const appCont = document.getElementById('app-container');
-  if (loginScr) loginScr.style.display = 'none';
-  if (appCont) appCont.classList.remove('hidden');
-
-  const topAvatar = document.getElementById('topAvatar');
-  const topUserName = document.getElementById('topUserName');
-  if (topAvatar) topAvatar.textContent = user.avatar || '👤';
-  if (topUserName) topUserName.textContent = user.name;
-
-  const btnSettings = document.getElementById('btn-open-settings');
-  const btnParent = document.getElementById('btn-parent-mode');
-  if (btnSettings) btnSettings.style.display = 'inline-block';
-  if (btnParent) btnParent.style.display = (user.role === 'parent') ? 'inline-block' : 'none';
-
-  if (typeof applySettings === 'function') applySettings();
-  if (typeof initDefaultSelectedAccount === 'function') initDefaultSelectedAccount();
-  if (typeof renderKids === 'function') renderKids();
-  if (typeof switchMainTab === 'function') switchMainTab('dashboard');
-  if (typeof window.loadCurrentProfileMealPlan === 'function') window.loadCurrentProfileMealPlan();
+/* Grille et blocs de comptes */
+.accounts-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
 }
 
-function logout() {
-  sessionStorage.removeItem('activeUserId');
-  currentUser = null;
-  if (typeof isParentMode !== 'undefined') isParentMode = false;
-  showLoginScreen();
+.account-badge-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 110px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-// --- GESTION DES PROFILS ---
-function openProfileEditModal(userId) {
-  const generalModal = document.getElementById('generalSettingsModal');
-  if (generalModal) generalModal.style.display = 'none';
-
-  const form = document.getElementById('profileEditForm');
-  if (form) form.reset();
-
-  const titleEl = document.getElementById('profileEditModalTitle');
-  const idEl = document.getElementById('editUserId');
-  const nameEl = document.getElementById('editUserName');
-  const avatarEl = document.getElementById('editUserAvatar');
-  const roleEl = document.getElementById('editUserRole');
-  const pinField = document.getElementById('editUserPin');
-
-  if (userId) {
-    const u = appUsers.find(x => x.id === userId);
-    if (!u) return;
-    if (titleEl) titleEl.textContent = `Modifier ${u.name}`;
-    if (idEl) idEl.value = u.id;
-    if (nameEl) nameEl.value = u.name;
-    if (avatarEl) avatarEl.value = u.avatar || '🧑';
-    if (roleEl) roleEl.value = u.role;
-    if (pinField) {
-      pinField.value = u.pin ? '••••••••' : '';
-      pinField.onfocus = () => {
-        if (pinField.value === '••••••••') pinField.value = '';
-      };
-    }
-  } else {
-    if (titleEl) titleEl.textContent = "Créer un profil";
-    if (idEl) idEl.value = '';
-    if (nameEl) nameEl.value = '';
-    if (avatarEl) avatarEl.value = '🧑';
-    if (roleEl) roleEl.value = 'child';
-    if (pinField) {
-      pinField.value = '';
-      pinField.onfocus = null;
-    }
-  }
-
-  const modal = document.getElementById('profileEditModal');
-  if (modal) modal.style.display = 'flex';
+.account-badge-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
 }
 
-window.closeProfileEditModal = () => {
-  const modal = document.getElementById('profileEditModal');
-  if (modal) modal.style.display = 'none';
-  if (typeof openGeneralSettingsModal === 'function') {
-    openGeneralSettingsModal();
-  }
-};
-
-async function saveProfileEdit(e) {
-  if (e && typeof e.preventDefault === 'function') e.preventDefault();
-
-  const idInput = document.getElementById('editUserId');
-  const id = idInput ? idInput.value : '';
-  const nameInput = document.getElementById('editUserName');
-  const name = nameInput ? nameInput.value.trim() : '';
-  const avatarInput = document.getElementById('editUserAvatar');
-  const avatar = avatarInput ? (avatarInput.value.trim() || '🧑') : '🧑';
-  const roleSelect = document.getElementById('editUserRole');
-  const role = roleSelect ? roleSelect.value : 'child';
-  const pinField = document.getElementById('editUserPin');
-  const rawPin = pinField ? pinField.value.trim() : '';
-
-  if (!name) {
-    alert("Prénom obligatoire.");
-    return;
-  }
-
-  appUsers = JSON.parse(localStorage.getItem('app_users')) || appUsers;
-
-  if (id) {
-    const u = appUsers.find(x => x.id === id);
-    if (u) {
-      u.name = name;
-      u.avatar = avatar;
-      u.role = role;
-      if (rawPin !== '' && rawPin !== '••••••••') {
-        u.pin = await hashPin(rawPin);
-      } else if (rawPin === '') {
-        u.pin = '';
-      }
-    }
-  } else {
-    const hashedPin = rawPin ? await hashPin(rawPin) : '';
-    const newUser = {
-      id: 'u_' + Date.now(),
-      name: name,
-      role: role,
-      pin: hashedPin,
-      avatar: avatar,
-      theme: 'dark',
-      primaryColor: '#38bdf8'
-    };
-    appUsers.push(newUser);
-
-    // Ajout automatique dans les missions si profil enfant
-    if (role === 'child') {
-      let missionsState = JSON.parse(localStorage.getItem('family_rewards_app')) || (typeof kidsState !== 'undefined' ? kidsState : null);
-      if (missionsState && Array.isArray(missionsState.kids)) {
-        const alreadyExists = missionsState.kids.some(k => k.name.toLowerCase() === name.toLowerCase());
-        if (!alreadyExists) {
-          missionsState.kids.push({
-            id: Date.now(),
-            name: name,
-            birthDate: "2018-01-01",
-            avatar: avatar,
-            stars: 0,
-            lifetimeStars: 0,
-            present: true
-          });
-          localStorage.setItem('family_rewards_app', JSON.stringify(missionsState));
-          if (typeof window.saveToUpstash === 'function') window.saveToUpstash('family_rewards_app', missionsState);
-          if (typeof renderKids === 'function') renderKids();
-        }
-      }
-    }
-  }
-
-  // Sauvegarde locale ET envoi immédiat sur Upstash
-  localStorage.setItem('app_users', JSON.stringify(appUsers));
-  if (typeof window.saveToUpstash === 'function') {
-    await window.saveToUpstash('app_users', appUsers);
-  }
-
-  if (idInput) idInput.value = '';
-
-  const editModal = document.getElementById('profileEditModal');
-  if (editModal) editModal.style.display = 'none';
-
-  renderAppUsersList();
-  showLoginScreen();
-
-  if (typeof openGeneralSettingsModal === 'function') {
-    openGeneralSettingsModal();
-  }
+.account-badge-card .acc-title {
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-function renderAppUsersList() {
-  const list = document.getElementById('appUsersList');
-  if (!list) return;
-
-  appUsers = JSON.parse(localStorage.getItem('app_users')) || appUsers;
-
-  list.innerHTML = appUsers.map(u => `
-    <div style="background:var(--bg); border:1px solid var(--border); padding:8px 12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <span>${u.avatar || '👤'} <b>${u.name}</b></span>
-        <span style="font-size:0.75rem; color:var(--text-muted); margin-left:6px;">(${u.role === 'parent' ? 'Parent' : 'Enfant'} • PIN : ${u.pin ? '••••' : 'Aucun'})</span>
-      </div>
-      <div style="display:flex; gap:6px;">
-        <button class="btn-nav" style="padding:4px 8px; font-size:0.75rem;" onclick="openProfileEditModal('${u.id}')">✏️</button>
-        <button class="btn-danger" style="padding:4px 8px;" onclick="deleteAppUser('${u.id}')">✕</button>
-      </div>
-    </div>
-  `).join('');
+.account-badge-card .acc-balance {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin-top: 8px;
 }
 
-window.deleteAppUser = async (id) => {
-  const target = appUsers.find(x => x.id === id);
-  if (!target) return;
-  if (target.role === 'parent' && appUsers.filter(x => x.role === 'parent').length <= 1) {
-    alert("Impossible de supprimer le seul parent restant.");
-    return;
-  }
-  if (confirm(`Supprimer le profil de ${target.name} ?`)) {
-    appUsers = appUsers.filter(x => x.id !== id);
-    localStorage.setItem('app_users', JSON.stringify(appUsers));
-    if (typeof window.saveToUpstash === 'function') {
-      await window.saveToUpstash('app_users', appUsers);
-    }
-    renderAppUsersList();
-    showLoginScreen();
-  }
-};
+/* Petit carré pour le nombre de convives par repas */
+.meal-slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
 
-window.showLoginScreen = showLoginScreen;
-window.attemptLogin = attemptLogin;
-window.closeLoginPinModal = closeLoginPinModal;
-window.submitLoginPin = submitLoginPin;
-window.loginAs = loginAs;
-window.logout = logout;
-window.openProfileEditModal = openProfileEditModal;
-window.saveProfileEdit = saveProfileEdit;
-window.renderAppUsersList = renderAppUsersList;
+.meal-portions-input {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  padding: 0 !important;
+  text-align: center !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  border-radius: 6px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  line-height: 26px !important;
+  box-sizing: border-box !important;
+  -moz-appearance: textfield;
+}
+
+/* Masque les flèches du navigateur pour conserver un vrai format carré */
+.meal-portions-input::-webkit-outer-spin-button,
+.meal-portions-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* --- SYSTÈME DE PROGRÈS & EFFORT --- */
+.task-progress-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn-effort {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.btn-effort:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.btn-effort-done {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
+}
+
+.btn-effort-done:hover {
+  background: #d1fae5;
+}
+
+.progress-level-badge {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+.meal-portions-input:focus {
+  border-color: var(--primary) !important;
+  outline: none;
+}
