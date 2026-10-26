@@ -289,11 +289,21 @@ function renderBudget() {
   generateRecurringTransactions(currentMonthKey);
 
   let realTotal = baseBalance;
-  let carryoverTotal = baseBalance;
+  let forecastTotal = baseBalance;
 
   transactions.forEach(tx => {
-    if (tx.cleared) realTotal += (tx.type === 'income' ? tx.amount : -tx.amount);
-    if (getBudgetMonthKey(tx.date) < currentMonthKey) carryoverTotal += (tx.type === 'income' ? tx.amount : -tx.amount);
+    const amount = tx.type === 'income' ? tx.amount : -tx.amount;
+    const txMonthKey = getBudgetMonthKey(tx.date);
+    
+    // Solde réel : uniquement ce qui est pointé
+    if (tx.cleared) {
+      realTotal += amount;
+    }
+    
+    // Solde prévisionnel : ce qui est pointé (même futur) + tout ce qui appartient au mois en cours ou passé
+    if (tx.cleared || txMonthKey <= currentMonthKey) {
+      forecastTotal += amount;
+    }
   });
 
   const realBalEl = document.getElementById('realBalance');
@@ -313,7 +323,7 @@ function renderBudget() {
   });
 
   const forecastBalEl = document.getElementById('forecastBalance');
-  if (forecastBalEl) forecastBalEl.textContent = formatMoney(carryoverTotal + (mIncome - mExpense));
+  if (forecastBalEl) forecastBalEl.textContent = formatMoney(forecastTotal);
 
   const summaryGrid = document.getElementById('summaryGrid');
   const noSummary = document.getElementById('noSummaryMessage');
