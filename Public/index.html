@@ -610,7 +610,6 @@
       <button type="button" class="modal-close-btn" onclick="closeDashboardCustomModal()" aria-label="Fermer">✕</button>
     </div>
 
-    <!-- C'est ici que le JavaScript va injecter les switchs -->
     <div id="dashCustomCards" class="dash-custom-list"></div>
 
     <div class="modal-footer-clean">
@@ -621,9 +620,7 @@
   </div>
 </div>
 
-
-
-  <!-- ================= MODALE NOUVELLE / MODIFIER OPÉRATION ================= -->
+<!-- ================= MODALE NOUVELLE / MODIFIER OPÉRATION ================= -->
 <div class="modal-overlay" id="txModal" style="display: none;">
   <div class="modal" style="width: 380px;">
     <h3 id="txModalTitle" style="margin: 0 0 12px 0;">Nouvelle Opération</h3>
@@ -669,8 +666,13 @@
               <div style="font-size: 0.75rem; color: var(--text-muted);">Opération récurrente mensuelle</div>
             </div>
           </div>
-          <input type="checkbox" id="txRecurring" style="width: 20px; height: 20px; min-width: 20px; accent-color: var(--primary); cursor: pointer; margin: 0; flex-shrink: 0;">
+          <input type="checkbox" id="txRecurring" onchange="document.getElementById('txRecurringEndGroup').style.display = this.checked ? 'block' : 'none';" style="width: 20px; height: 20px; min-width: 20px; accent-color: var(--primary); cursor: pointer; margin: 0; flex-shrink: 0;">
         </label>
+        
+        <div id="txRecurringEndGroup" style="display: none; margin-top: 10px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+          <label for="txRecurringEndDate" style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">Jusqu'au (Date de fin - Optionnelle)</label>
+          <input type="date" id="txRecurringEndDate" class="form-input" style="width: 100%;">
+        </div>
       </div>
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
@@ -725,6 +727,7 @@
     </form>
   </div>
 </div>
+
 <!-- ================= MODALE OPÉRATIONS RÉCURRENTES ================= -->
 <div class="modal-overlay" id="recurringModal" style="display: none;">
   <div class="modal" style="width: 440px; max-height: 85vh; display: flex; flex-direction: column;">
@@ -764,7 +767,7 @@
       <div style="display: flex; gap: 10px;">
         <div style="flex: 1;">
           <label style="font-size: 0.8rem;">XP de base (Progrès)</label>
-<input type="number" id="missionFormPoints" min="1" max="100" value="10" required>
+          <input type="number" id="missionFormPoints" min="1" max="100" value="10" required>
         </div>
         <div style="flex: 1;">
           <label style="font-size: 0.8rem;">Attribuée à</label>
