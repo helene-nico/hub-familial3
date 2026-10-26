@@ -61,7 +61,7 @@ async function callAI(messages) {
 
   if (AI_KEY.startsWith('gsk_')) {
     apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-    model = 'openai/gpt-oss-20b'; // Modèle officiel Groq actif, gratuit et ultrarapide
+    model = 'openai/gpt-oss-20b';
   }
 
   const response = await fetch(apiUrl, {
@@ -74,6 +74,7 @@ async function callAI(messages) {
       model,
       messages,
       temperature: 0.7,
+      max_tokens: 4096,
       response_format: { type: "json_object" }
     })
   });
@@ -177,12 +178,14 @@ Réponds OBLIGATOIREMENT avec ce JSON valide :
   }
 });
 
-// Route IA : Suggérer la semaine complète
+// Route IA : Suggérer la semaine complète (14 créneaux obligatoires)
 app.post('/api/ai/suggest-week', async (req, res) => {
   try {
     const { slots } = req.body;
-    const prompt = `Génère un planning de repas familiaux variés pour les créneaux suivants :
+    const prompt = `Tu es un chef cuisinier familial français. Tu DOIS obligatoirement générer un repas pour CHACUN des ${slots.length} créneaux suivants sans exception (du premier au tout dernier créneau) :
 ${slots.map(s => `- ID: "${s.id}", Créneau: "${s.label}"`).join('\n')}
+
+Pour chaque créneau, indique 3 à 5 ingrédients essentiels et une préparation en 2 phrases pour garantir un format compact et complet.
 
 Réponds UNIQUEMENT avec ce JSON valide :
 {
@@ -193,15 +196,15 @@ Réponds UNIQUEMENT avec ce JSON valide :
       "icon": "Emoji",
       "category": "Quotidien",
       "ingredients": [
-        { "name": "Nom ingrédient", "qty": 500, "unit": "g" }
+        { "name": "Nom ingrédient", "qty": 400, "unit": "g" }
       ],
-      "steps": "Instructions de préparation."
+      "steps": "Instructions de préparation concises."
     }
   ]
 }`;
 
     const result = await callAI([
-      { role: "system", content: "Tu es un assistant culinaire qui répond uniquement en JSON strict." },
+      { role: "system", content: "Tu es un assistant culinaire qui répond uniquement en JSON strict contenant obligatoirement tous les créneaux demandés." },
       { role: "user", content: prompt }
     ]);
 
