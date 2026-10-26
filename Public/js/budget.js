@@ -656,7 +656,38 @@ function renderRecurringList() {
     return;
   }
 
-  list.innerHTML = recurringRules.map(r => {
+  const itemsHtml = recurringRules.map(r => {
+    const cName = categories.find(c => c.id === r.categoryId)?.name || '';
+    return `
+      <div style="background:var(--bg); border:1px solid var(--border); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div>
+          <div style="font-weight:700;">${r.title}</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">
+            Le ${r.day} du mois • <span class="${r.type === 'income' ? 'positive' : 'negative'}">${r.type === 'income' ? '+' : '-'}${formatMoney(r.amount)}</span> ${cName ? '('+cName+')' : ''}
+          </div>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn-nav" onclick="editRecurringRuleAmount('${r.id}')" title="Modifier le montant">✏️</button>
+          <button class="btn-danger" onclick="deleteRecurringRule('${r.id}')" title="Supprimer">✕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Calcul du total (revenus - dépenses)
+  const total = recurringRules.reduce((sum, r) => sum + (r.type === 'income' ? r.amount : -r.amount), 0);
+
+  const totalHtml = `
+    <div style="background:var(--bg); border:1px solid var(--border); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-weight:700;">
+      <div>Total</div>
+      <div class="${total >= 0 ? 'positive' : 'negative'}">
+        ${total > 0 ? '+' : ''}${formatMoney(total)}
+      </div>
+    </div>
+  `;
+
+  list.innerHTML = itemsHtml + totalHtml;
+}
     const cName = categories.find(c => c.id === r.categoryId)?.name || '';
     return `
       <div style="background:var(--bg); border:1px solid var(--border); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
