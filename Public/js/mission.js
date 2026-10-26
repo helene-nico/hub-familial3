@@ -271,13 +271,12 @@ window.submitMission = function(missionId) {
 window.awardWeeklyStar = function(kidId) {
   const kid = state.kids.find(k => String(k.id) === String(kidId));
   if (!kid) return;
-  const stats = getWeeklyStats(kid.id);
-  if (confirm(`Attribuer 1 étoile de progrès à ${kid.name} pour son bilan de la semaine (${stats.withoutReminderCount} tâche(s) sans rappel) ?`)) {
-    kid.stars = (kid.stars || 0) + 1;
-    kid.lifetimeStars = (kid.lifetimeStars || 0) + 1;
-    saveState();
-    alert(`Étoile de progrès accordée à ${kid.name} ! ⭐`);
-  }
+
+  kid.stars = (Number(kid.stars) || 0) + 1;
+  kid.lifetimeStars = (Number(kid.lifetimeStars) || 0) + 1;
+  
+  saveState();
+  renderKids();
 };
 
 // --- UTILISATION DES RÉCOMPENSES ---
@@ -425,7 +424,7 @@ window.validatePendingTask = function(id, withoutReminder = true) {
   const todayKey = getDailyKey();
 
   if (kid) {
-    // 1. Enregistre pour cocher la routine du jour
+    // 1. Coche la routine pour aujourd'hui (sans donner d'étoile)
     if (!state.completedToday) state.completedToday = [];
     state.completedToday.push({
       missionId: item.missionId,
@@ -434,13 +433,14 @@ window.validatePendingTask = function(id, withoutReminder = true) {
       withoutReminder: Boolean(withoutReminder)
     });
 
-    // 2. Enregistre dans l'historique de la semaine (sans ajouter d'étoile)
+    // 2. Enregistre dans l'historique hebdomadaire (0 étoile)
     if (!state.history) state.history = [];
     state.history.push({
       id: item.id || Date.now(),
       kidId: item.kidId,
       missionId: item.missionId,
       title: item.title,
+      points: 0,
       date: todayKey,
       withoutReminder: Boolean(withoutReminder),
       timestamp: Date.now()
@@ -1050,7 +1050,7 @@ function renderKids() {
               <div style="font-size:0.85rem; font-weight:700; color:var(--yellow); margin-bottom:4px;">
                 ${kid.stars || 0} ⭐
               </div>
-              <button class="btn-primary btn-small" onclick="awardWeeklyStar(${kid.id})" style="font-size:0.75rem; padding:4px 10px;">
+              <button class="btn-primary btn-small" onclick="awardWeeklyStar('${kid.id}')" style="font-size:0.75rem; padding:4px 10px;">
                 ⭐ Récompenser (+1 ⭐)
               </button>
             </div>
