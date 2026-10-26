@@ -1,290 +1,176 @@
-// --- SYNCHRONISATION BUDGÉTAIRE AVEC UPSTASH (SÉCURISÉE) ---
+// ==========================================
+// MODULE BUDGET FAMILIAL (Multi-comptes, Rapprochement, Prévisionnel)
+// ==========================================
 
-// Sauvegarde vers le serveur en utilisant la file d'attente de sync.js si disponible
-async function saveToCloud(key, value) {
-  if (typeof window.saveToUpstash === 'function') {
-    return window.saveToUpstash(key, value);
-  }
-  try {
-    await fetch(`/api/store/${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value })
-    });
-  } catch (err) {
-    console.error(`Erreur d'envoi cloud (${key}) :`, err);
-  }
-}
-
-// Suppression distante
-async function deleteFromCloud(key) {
-  try {
-    await fetch(`/api/store/${encodeURIComponent(key)}`, { method: 'DELETE' });
-  } catch (err) {
-    console.error(`Erreur suppression cloud (${key}) :`, err);
-  }
-}
-
-// Récupération des données distantes sans redéclencher de boucle d'écriture
-async function syncFromCloud() {
-  try {
-    const res = await fetch('/api/sync', { cache: 'no-store' });
-    if (!res.ok) return;
-    const cloudData = await res.json();
-
-    if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
-      // 1. Mise à jour silencieuse du stockage local (sans interférence avec sync.js)
-      const setter = (typeof originalSetItem === 'function') ? originalSetItem : localStorage.setItem.bind(localStorage);
-      Object.keys(cloudData).forEach(key => {
-        const val = cloudData[key];
-        setter(key, typeof val === 'string' ? val : JSON.stringify(val));
-      });
-
-      // 2. Actualisation de la liste des comptes en mémoire vive
-      if (cloudData.bank_accounts) {
-        bankAccounts = typeof cloudData.bank_accounts === 'string'
-          ? JSON.parse(cloudData.bank_accounts)
-          : cloudData.bank_accounts;
-      }
-
-      // 3. Rafraîchissement graphique immédiat
-      renderAccountsCards();
-      if (currentAccountId) {
-        loadCurrentAccountData();
-      }
-    } else {
-      // Initialisation par défaut si Upstash est encore totalement vierge
-      if (bankAccounts && bankAccounts.length > 0) {
-        saveToCloud('bank_accounts', bankAccounts);
-      }
-    }
-  } catch (err) {
-    console.error("Erreur de synchronisation cloud budget :", err);
-  }
-}
-
-// Déclencheurs de synchronisation : au chargement, au focus et toutes les 15 secondes
-syncFromCloud();
-window.addEventListener('focus', syncFromCloud);
-setInterval(syncFromCloud, 15000);
-
-// --- DONNÉES FINANCIÈRES ---
-// --- DONNÉES FINANCIÈRES ---
-let bankAccounts = JSON.parse(localStorage.getItem('bank_accounts')) || [
-  { id: 'acc_comm', name: 'Compte Commun', icon: '🏦', ownerId: 'shared', sharing: 'all', baseBalance: 0 },
-  { id: 'acc_u1', name: 'Compte Perso Papa', icon: '💳', ownerId: 'u1', sharing: 'parents', baseBalance: 0 },
-  { id: 'acc_u2', name: 'Compte Perso Maman', icon: '💳', ownerId: 'u2', sharing: 'parents', baseBalance: 0 }
-];
-
-let currentAccountId = null;
-let baseBalance = 0;
+let bankAccounts = [];
+let categories = [];
 let transactions = [];
 let recurringRules = [];
-let categories = [];
-let defaultCategories = [
-  { id: 'c1', name: 'Alimentation' },
-  { id: 'c2', name: 'Logement' },
-  { id: 'c3', name: 'Loisirs' }
-];
-let showCleared = false;
-let currentDateBudget = new Date();
+let budgetSettings = { defaultAccountId: null };
 
-const txDateInput = document.getElementById('txDate');
-if (txDateInput) txDateInput.value = new Date().toISOString().split('T')[0];
+let currentAccountId = null;
+let currentMonthKey = ''; // Format 'YYYY-MM'
+let isInitialBudgetLoad = true;
 
-function formatMoney(amount) {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount || 0);
-}
-
-function getBudgetMonthKey(dateStr) {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  return `${parts[0]}-${String(parts[1]).padStart(2, '0')}`;
-}
-
-function canAccessAccount(acc, user) {
-  if (!acc || !user) return false;
-  if (acc.sharing === 'all') return true;
-  if (acc.sharing === 'parents') return user.role === 'parent';
-  if (acc.sharing === 'private') return acc.ownerId === user.id;
-  return false;
-}
-
-function getAccessibleAccounts() {
-  if (typeof currentUser === 'undefined' || !currentUser) return [];
-  return bankAccounts.filter(acc => canAccessAccount(acc, currentUser));
-}
-
-// --- NAVIGATION ENTRE L'ACCUEIL DES COMPTES ET LE DÉTAIL ---
-window.showBudgetAccountsView = function() {
-  const accView = document.getElementById('budget-accounts-view');
-  const detailView = document.getElementById('budget-detail-view');
-  if (accView) accView.classList.remove('hidden');
-  if (detailView) detailView.classList.add('hidden');
-  renderAccountsCards();
+// --- INITIALISATION ---
+window.initBudgetModule = async () => {
+  setupBudgetDateSelector();
+  await loadBudgetData();
+  setupBudgetEventListeners();
 };
 
-window.showBudgetDetailView = function() {
-  const accView = document.getElementById('budget-accounts-view');
-  const detailView = document.getElementById('budget-detail-view');
-  if (accView) accView.classList.add('hidden');
-  if (detailView) detailView.classList.remove('hidden');
-};
+function setupBudgetDateSelector() {
+  const select = document.getElementById('budgetMonthSelect');
+  if (!select) return;
 
-window.initDefaultSelectedAccount = function() {
-  showBudgetAccountsView();
-};
+  select.innerHTML = '';
+  const now = new Date();
+  
+  // Générer une plage de 12 mois passés à 12 mois futurs
+  for (let i = -12; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+    if (i === 0) opt.selected = true;
+    select.appendChild(opt);
+  }
 
-window.selectBankAccount = function(id) {
-  currentAccountId = id;
-  loadCurrentAccountData();
-  showBudgetDetailView();
-};
-
-function computeAccountRealBalance(accId) {
-  const acc = bankAccounts.find(a => a.id === accId);
-  if (!acc) return 0;
-  const txs = JSON.parse(localStorage.getItem('transactions_' + accId)) || [];
-  let total = acc.baseBalance || 0;
-  txs.forEach(tx => {
-    if (tx.cleared) {
-      total += (tx.type === 'income' ? tx.amount : -tx.amount);
-    }
-  });
-  return total;
+  currentMonthKey = select.value;
+  select.onchange = (e) => {
+    currentMonthKey = e.target.value;
+    renderCurrentMonth();
+  };
 }
 
-function loadCurrentAccountData() {
-  renderAccountsCards();
+// --- CHARGEMENT DES DONNÉES ---
+async function loadBudgetData() {
+  // 1. Paramètres & Catégories (globaux)
+  budgetSettings = JSON.parse(localStorage.getItem('budget_settings')) || { defaultAccountId: null };
+  categories = JSON.parse(localStorage.getItem('budget_categories')) || [];
+  
+  // Si aucune catégorie n'existe, on injecte les catégories par défaut
+  if (categories.length === 0) {
+    categories = [
+      { id: 'cat_salaire', name: 'Salaires & Revenus', icon: '💰', type: 'income' },
+      { id: 'cat_courses', name: 'Alimentation & Courses', icon: '🛒', type: 'expense' },
+      { id: 'cat_logement', name: 'Loyer & Charges', icon: '🏠', type: 'expense' },
+      { id: 'cat_energie', name: 'Électricité & Eau', icon: '⚡', type: 'expense' },
+      { id: 'cat_loisirs', name: 'Loisirs & Sorties', icon: '🎉', type: 'expense' },
+      { id: 'cat_transports', name: 'Transports & Carburant', icon: '🚗', type: 'expense' },
+      { id: 'cat_sante', name: 'Santé & Assurances', icon: '💊', type: 'expense' },
+      { id: 'cat_virement', name: 'Virements internes', icon: '🔄', type: 'both' }
+    ];
+    localStorage.setItem('budget_categories', JSON.stringify(categories));
+    saveToCloud('budget_categories', categories);
+  }
+
+  // 2. Comptes bancaires
+  bankAccounts = JSON.parse(localStorage.getItem('bank_accounts')) || [];
+  if (bankAccounts.length === 0) {
+    bankAccounts = [
+      { id: 'acc_principal', name: 'Compte Courant Principal', initialBalance: 0, color: '#3b82f6' }
+    ];
+    budgetSettings.defaultAccountId = 'acc_principal';
+    localStorage.setItem('bank_accounts', JSON.stringify(bankAccounts));
+    localStorage.setItem('budget_settings', JSON.stringify(budgetSettings));
+    saveToCloud('bank_accounts', bankAccounts);
+    saveToCloud('budget_settings', budgetSettings);
+  }
+
+  // Définir le compte actif
+  if (!currentAccountId || !bankAccounts.some(a => a.id === currentAccountId)) {
+    currentAccountId = budgetSettings.defaultAccountId || bankAccounts[0].id;
+  }
+
+  renderAccountTabs();
+  loadCurrentAccountTransactions();
+}
+
+function renderAccountTabs() {
+  const container = document.getElementById('accountTabsList');
+  if (!container) return;
+
+  container.innerHTML = bankAccounts.map(acc => `
+    <button class="account-tab ${acc.id === currentAccountId ? 'active' : ''}" onclick="switchAccount('${acc.id}')">
+      <span class="account-tab-indicator" style="background:${acc.color || 'var(--primary)'};"></span>
+      ${acc.name}
+    </button>
+  `).join('');
+}
+
+window.switchAccount = (accId) => {
+  currentAccountId = accId;
+  renderAccountTabs();
+  loadCurrentAccountTransactions();
+};
+
+function loadCurrentAccountTransactions() {
   if (!currentAccountId) {
     transactions = [];
     recurringRules = [];
-    baseBalance = 0;
-    categories = defaultCategories;
-    renderBudget();
+    renderCurrentMonth();
     return;
   }
-
-  const acc = bankAccounts.find(a => a.id === currentAccountId);
-  baseBalance = acc ? (acc.baseBalance || 0) : 0;
-  transactions = JSON.parse(localStorage.getItem('transactions_' + currentAccountId)) || [];
+  transactions = JSON.parse(localStorage.getItem('budget_tx_' + currentAccountId)) || [];
   recurringRules = JSON.parse(localStorage.getItem('recurring_rules_' + currentAccountId)) || [];
-  categories = JSON.parse(localStorage.getItem('categories_' + currentAccountId)) || defaultCategories;
-
-  renderBudget();
+  renderCurrentMonth();
 }
 
 function saveBudgetData() {
   if (!currentAccountId) return;
+  localStorage.setItem('budget_tx_' + currentAccountId, JSON.stringify(transactions));
+  saveToCloud('budget_tx_' + currentAccountId, transactions);
 
-  // 1. Sauvegarde locale
-  localStorage.setItem('transactions_' + currentAccountId, JSON.stringify(transactions));
   localStorage.setItem('recurring_rules_' + currentAccountId, JSON.stringify(recurringRules));
-  localStorage.setItem('categories_' + currentAccountId, JSON.stringify(categories));
-
-  const acc = bankAccounts.find(a => a.id === currentAccountId);
-  if (acc) {
-    acc.baseBalance = baseBalance;
-    localStorage.setItem('bank_accounts', JSON.stringify(bankAccounts));
-    saveToCloud('bank_accounts', bankAccounts);
-  }
-
-  // 2. Synchronisation Upstash
-  saveToCloud('transactions_' + currentAccountId, transactions);
   saveToCloud('recurring_rules_' + currentAccountId, recurringRules);
-  saveToCloud('categories_' + currentAccountId, categories);
-}
-
-function renderAccountsCards() {
-  const container = document.getElementById('accountsCardsGrid');
-  if (!container) return;
-  container.innerHTML = '';
-  const accessible = getAccessibleAccounts();
-
-  if (accessible.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-muted); padding:10px;">Aucun compte accessible pour ce profil.</p>';
-    return;
-  }
-
-  accessible.forEach(acc => {
-    const realBal = computeAccountRealBalance(acc.id);
-    let badgeLabel = '🌍 Famille';
-    if (acc.sharing === 'private') badgeLabel = '🔒 Privé';
-    if (acc.sharing === 'parents') badgeLabel = '👥 Parents';
-
-    const isActive = acc.id === currentAccountId;
-
-    container.innerHTML += `
-      <div class="account-badge-card ${isActive ? 'active' : ''}" onclick="selectBankAccount('${acc.id}')">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div class="acc-title"><span>${acc.icon || '💳'}</span> <span>${acc.name}</span></div>
-          <span class="badge badge-cat">${badgeLabel}</span>
-        </div>
-        <div class="acc-balance val-real">${formatMoney(realBal)}</div>
-      </div>
-    `;
-  });
-
-  const activeAcc = bankAccounts.find(a => a.id === currentAccountId);
-  const label = document.getElementById('activeAccountNameLabel');
-  if (label) {
-    label.textContent = activeAcc ? `${activeAcc.icon || '💳'} ${activeAcc.name}` : 'Sélectionnez un compte';
-  }
 }
 
 // --- AUTO-GÉNÉRATION DES RÉCURRENCES ---
 function generateRecurringTransactions(monthKey) {
   if (!recurringRules || recurringRules.length === 0) return;
-  let modified = false;
+
+  const [year, month] = monthKey.split('-').map(Number);
+  let hasNew = false;
 
   recurringRules.forEach(rule => {
-    const ruleMonthKey = getBudgetMonthKey(rule.startDate);
-    if (ruleMonthKey <= monthKey) {
-      const exists = transactions.some(t => t.recurringId === rule.id && getBudgetMonthKey(t.date) === monthKey);
+    // Vérifier si cette règle a déjà été instanciée pour ce mois
+    const exists = transactions.some(t => t.recurringId === rule.id && getBudgetMonthKey(t.date) === monthKey);
+    if (!exists) {
+      // Trouver le jour valide du mois
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const targetDay = Math.min(rule.day, daysInMonth);
+      const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
 
-      if (!exists) {
-        let y = parseInt(monthKey.split('-')[0]);
-        let m = parseInt(monthKey.split('-')[1]);
-        let d = rule.day;
-
-        let maxDays = new Date(y, m, 0).getDate();
-        if (d > maxDays) d = maxDays;
-
-        let dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-        transactions.push({
-          id: 'tx_' + Date.now() + Math.floor(Math.random() * 1000),
-          type: rule.type,
-          categoryId: rule.categoryId,
-          title: rule.title,
-          amount: rule.amount,
-          date: dateStr,
-          cleared: false,
-          recurringId: rule.id
-        });
-        modified = true;
-      }
+      transactions.push({
+        id: 'tx_rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        type: rule.type,
+        categoryId: rule.categoryId,
+        title: rule.title,
+        amount: rule.amount,
+        date: formattedDate,
+        cleared: false,
+        recurringId: rule.id
+      });
+      hasNew = true;
     }
   });
 
-  if (modified) saveBudgetData();
+  if (hasNew) {
+    saveBudgetData();
+  }
 }
 
-function renderBudget() {
-  const catSelect = document.getElementById('txCategory');
-  if (catSelect) {
-    catSelect.innerHTML = '<option value="">-- Aucune --</option>';
-    categories.forEach(c => catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
-  }
+// --- AFFICHAGE ET CALCULS DU MOIS COURANT ---
+function renderCurrentMonth() {
+  if (!currentAccountId) return;
 
-  const year = currentDateBudget.getFullYear();
-  const month = currentDateBudget.getMonth();
-  const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
-
-  const monthLabel = document.getElementById('currentMonthLabel');
-  if (monthLabel) monthLabel.textContent = `${monthNames[month]} ${year}`;
-
-  const currentMonthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const [year, month] = currentMonthKey.split('-').map(Number);
+  const now = new Date();
+  const activeMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   generateRecurringTransactions(currentMonthKey);
 
@@ -316,17 +202,18 @@ function renderBudget() {
   if (forecastBalEl) forecastBalEl.textContent = formatMoney(carryoverTotal + (mIncome - mExpense));
 
   const summaryGrid = document.getElementById('summaryGrid');
-  const noSummary = document.getElementById('noSummaryMessage');
+  const noSummary = document.getElementById('noSummary');
   if (summaryGrid && noSummary) {
     summaryGrid.innerHTML = '';
     const catKeys = Object.keys(catTotals);
     if (catKeys.length > 0) {
       noSummary.style.display = 'none';
       catKeys.forEach(cid => {
-        const cName = cid === 'none' ? 'Non catégorisé' : (categories.find(c => c.id === cid)?.name || 'Inconnu');
+        const cat = categories.find(c => c.id === cid);
+        const cName = cat ? `${cat.icon || '📁'} ${cat.name}` : 'Non catégorisé';
         summaryGrid.innerHTML += `
-          <div style="background:var(--bg); border:1px solid var(--border); padding:10px; border-radius:8px;">
-            <div style="font-size:0.8rem; color:var(--text-muted);">${cName}</div>
+          <div class="summary-item">
+            <div style="font-size:0.85rem; color:var(--text-muted);">${cName}</div>
             <div style="font-weight:700;">${formatMoney(catTotals[cid])}</div>
           </div>`;
       });
@@ -335,310 +222,383 @@ function renderBudget() {
     }
   }
 
-  const tbody = document.getElementById('txTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  const displayed = monthTxs.filter(tx => showCleared || !tx.cleared);
+  // Rendu de la liste des transactions
+  const txListEl = document.getElementById('transactionList');
+  if (!txListEl) return;
 
-  if (displayed.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">Toutes les opérations sont à jour.</td></tr>';
+  if (monthTxs.length === 0) {
+    txListEl.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+          Aucune opération pour ce mois-ci.
+        </td>
+      </tr>`;
     return;
   }
 
-  displayed.forEach(tx => {
-    const cName = categories.find(c => c.id === tx.categoryId)?.name;
-    tbody.innerHTML += `
-      <tr class="${tx.cleared ? 'cleared' : ''}">
-        <td style="text-align:center;"><input type="checkbox" ${tx.cleared ? 'checked' : ''} onchange="toggleClear('${tx.id}')"></td>
-        <td>${tx.date.split('-').reverse().join('/')}</td>
+  txListEl.innerHTML = monthTxs.map(tx => {
+    const cat = categories.find(c => c.id === tx.categoryId);
+    const catName = cat ? `${cat.icon || '📁'} ${cat.name}` : 'Non catégorisé';
+    const isIncome = tx.type === 'income';
+
+    return `
+      <tr class="${tx.cleared ? 'cleared-row' : ''}">
+        <td style="text-align: center;">
+          <input type="checkbox" class="tx-checkbox" ${tx.cleared ? 'checked' : ''} onchange="toggleTxCleared('${tx.id}')" title="Marquer comme pointé">
+        </td>
+        <td>${formatDateFr(tx.date)}</td>
         <td>
           <div>${tx.title} ${tx.recurringId ? '<span class="badge badge-recurring">🔄 Récurrent</span>' : ''}</div>
-          ${cName ? `<span class="badge badge-cat">${cName}</span>` : ''}
+          <small style="color:var(--text-muted); font-size:0.8rem;">${catName}</small>
         </td>
-        <td style="text-align:right; font-weight:600;" class="${tx.type === 'income' ? 'positive' : 'negative'}">
-          ${tx.type === 'income' ? '+' : '-'}${formatMoney(tx.amount)}
+        <td class="${isIncome ? 'val-real' : 'val-forecast'}" style="font-weight:700;">
+          ${isIncome ? '+' : '-'}${formatMoney(tx.amount)}
         </td>
-        <td style="text-align:right; padding-right:12px;">
-          <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
-            <button class="btn-nav" style="padding:4px 8px; font-size:0.75rem;" onclick="openTxModal('${tx.id}')" title="Modifier">✏️</button>
-            <button class="btn-danger" style="padding:4px 8px;" onclick="deleteTx('${tx.id}')" title="Supprimer">✕</button>
-          </div>
+        <td style="text-align: right;">
+          <button class="btn-nav" onclick="editTransaction('${tx.id}')" title="Modifier">✏️</button>
+          <button class="btn-danger" onclick="deleteTransaction('${tx.id}')" title="Supprimer">✕</button>
         </td>
       </tr>
     `;
-  });
+  }).join('');
+
+  renderAccountsOverviewList();
 }
 
-window.toggleClear = (id) => {
+function renderAccountsOverviewList() {
+  const listEl = document.getElementById('allAccountsOverviewList');
+  if (!listEl) return;
+
+  listEl.innerHTML = bankAccounts.map(acc => {
+    const accTxs = JSON.parse(localStorage.getItem('budget_tx_' + acc.id)) || [];
+    let realBal = acc.initialBalance || 0;
+    accTxs.forEach(t => {
+      if (t.cleared) realBal += (t.type === 'income' ? t.amount : -t.amount);
+    });
+
+    return `
+      <div style="background:var(--bg); border:1px solid var(--border); padding:10px 14px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
+            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${acc.color || 'var(--primary)'};"></span>
+            ${acc.name}
+          </div>
+          <small style="color:var(--text-muted);">Solde pointé</small>
+        </div>
+        <div class="acc-balance val-real">${formatMoney(realBal)}</div>
+      </div>
+    `;
+  }).join('');
+
+  const activeAcc = bankAccounts.find(a => a.id === currentAccountId);
+  const activeLabel = document.getElementById('activeAccountDetailsLabel');
+  if (activeLabel && activeAcc) {
+    activeLabel.textContent = `Détails : ${activeAcc.name}`;
+  }
+}
+
+// Pointage d'une transaction
+window.toggleTxCleared = (id) => {
   const tx = transactions.find(t => t.id === id);
   if (tx) {
     tx.cleared = !tx.cleared;
     saveBudgetData();
-    loadCurrentAccountData();
+    renderCurrentMonth();
   }
 };
 
-window.deleteTx = (id) => {
+// Suppression d'une transaction
+window.deleteTransaction = (id) => {
   const tx = transactions.find(t => t.id === id);
   if (!tx) return;
 
   if (tx.recurringId) {
-    const choice = confirm("Cette opération est récurrente.\n\nOK : Supprimer l'opération ET arrêter la récurrence.\nAnnuler : Ne rien faire.");
-    if (!choice) return;
-    recurringRules = recurringRules.filter(r => r.id !== tx.recurringId);
-    // Supprime aussi les autres opérations non pointées de cette récurrence (optionnel mais plus cohérent)
-    transactions = transactions.filter(t => t.recurringId !== tx.recurringId || t.cleared === true);
-  } else {
-    if (!confirm("Supprimer cette opération ?")) return;
-    transactions = transactions.filter(t => t.id !== id);
+    const choice = confirm("Cette opération est récurrente.\n\nOK : Supprimer l'opération ET arrêter la récurrence.\nAnnuler : Supprimer uniquement cette opération ce mois-ci.");
+    if (choice) {
+      recurringRules = recurringRules.filter(r => r.id !== tx.recurringId);
+      // Supprime aussi les autres opérations non pointées de cette récurrence (optionnel mais plus cohérent)
+      transactions = transactions.filter(t => t.recurringId !== tx.recurringId || t.cleared === true);
+    }
   }
 
+  transactions = transactions.filter(t => t.id !== id);
   saveBudgetData();
-  loadCurrentAccountData();
+  renderCurrentMonth();
 };
 
-window.toggleShowCleared = () => {
-  showCleared = document.getElementById('toggleCleared').checked;
-  renderBudget();
-};
+// --- MODALE GESTION TRANSACTION ---
+let currentEditingTxId = null;
 
-/* --- FENÊTRES MODALES OPÉRATIONS --- */
-window.openTxModal = (txId = null) => {
-  const form = document.getElementById('txForm');
-  if (form) form.reset();
-
-  const titleEl = document.getElementById('txModalTitle');
-  const editIdInput = document.getElementById('editTxId');
-  const btnDelete = document.getElementById('btnDeleteTxModal');
+window.openAddTxModal = () => {
+  currentEditingTxId = null;
+  document.getElementById('txModalTitle').textContent = 'Ajouter une opération';
+  document.getElementById('txForm').reset();
+  document.getElementById('txDate').value = getTodayBudgetStr();
+  
   const recurringGroup = document.getElementById('txRecurringGroup');
+  if (recurringGroup) recurringGroup.style.display = 'block';
 
-  if (txId) {
-    const tx = transactions.find(t => t.id === txId);
-    if (!tx) return;
-    if (titleEl) titleEl.textContent = "Modifier l'opération";
-    if (editIdInput) editIdInput.value = tx.id;
-    const typeSelect = document.getElementById('txType');
-    const catSelect = document.getElementById('txCategory');
-    const titleInput = document.getElementById('txTitle');
-    const amountInput = document.getElementById('txAmount');
-    const dateInput = document.getElementById('txDate');
+  populateCategoryOptions();
+  document.getElementById('txModal').style.display = 'flex';
+};
 
-    if (typeSelect) typeSelect.value = tx.type;
-    if (catSelect) catSelect.value = tx.categoryId || '';
-    if (titleInput) titleInput.value = tx.title;
-    if (amountInput) amountInput.value = tx.amount;
-    if (dateInput) dateInput.value = tx.date;
-    if (recurringGroup) recurringGroup.style.display = 'none';
-    if (btnDelete) btnDelete.style.display = 'inline-block';
-  } else {
-    if (titleEl) titleEl.textContent = "Nouvelle Opération";
-    if (editIdInput) editIdInput.value = '';
-    const dateInput = document.getElementById('txDate');
-    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-    if (recurringGroup) recurringGroup.style.display = 'block';
-    if (btnDelete) btnDelete.style.display = 'none';
-  }
+window.editTransaction = (id) => {
+  const tx = transactions.find(t => t.id === id);
+  if (!tx) return;
 
-  const modal = document.getElementById('txModal');
-  if (modal) modal.style.display = 'flex';
+  currentEditingTxId = id;
+  document.getElementById('txModalTitle').textContent = 'Modifier l\'opération';
+  document.getElementById('txType').value = tx.type;
+  document.getElementById('txTitle').value = tx.title;
+  document.getElementById('txAmount').value = tx.amount;
+  document.getElementById('txDate').value = tx.date;
+
+  const recurringGroup = document.getElementById('txRecurringGroup');
+  if (recurringGroup) recurringGroup.style.display = 'none';
+
+  populateCategoryOptions(tx.categoryId);
+  document.getElementById('txModal').style.display = 'flex';
 };
 
 window.closeTxModal = () => {
-  const modal = document.getElementById('txModal');
-  if (modal) modal.style.display = 'none';
+  document.getElementById('txModal').style.display = 'none';
 };
 
-window.deleteCurrentModalTx = () => {
-  const editId = document.getElementById('editTxId')?.value;
-  if (editId) {
-    closeTxModal();
-    deleteTx(editId);
-  }
-};
+function populateCategoryOptions(selectedId = null) {
+  const select = document.getElementById('txCategory');
+  if (!select) return;
 
-window.openBreakdownModal = () => { document.getElementById('breakdownModal').style.display = 'flex'; };
-window.closeBreakdownModal = () => { document.getElementById('breakdownModal').style.display = 'none'; };
-
-/* --- GESTION DES CATÉGORIES --- */
-window.openCatModal = () => { 
-  document.getElementById('catModal').style.display = 'flex'; 
-  renderCatModalList();
-};
-window.closeCatModal = () => { document.getElementById('catModal').style.display = 'none'; };
-
-function renderCatModalList() {
-  const list = document.getElementById('modalCatList');
-  if (!list) return;
-
-  if (categories.length === 0) {
-    list.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:10px;">Aucune catégorie.</p>';
-    return;
-  }
-
-  list.innerHTML = categories.map(c => `
-    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg); border:1px solid var(--border); padding:8px 12px; border-radius:8px;">
-      <span style="font-weight:600;">${c.name}</span>
-      <div style="display:flex; gap:4px;">
-        <button type="button" class="btn-nav" style="padding:4px 8px;" onclick="editCategory('${c.id}')" title="Modifier">✏️</button>
-        <button type="button" class="btn-danger" style="padding:4px 8px;" onclick="deleteCategory('${c.id}')" title="Supprimer">✕</button>
-      </div>
-    </div>
-  `).join('');
+  select.innerHTML = '<option value="">-- Choisir une catégorie --</option>';
+  categories.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = `${c.icon || '📁'} ${c.name}`;
+    if (c.id === selectedId) opt.selected = true;
+    select.appendChild(opt);
+  });
 }
 
-window.editCategory = (id) => {
-  const cat = categories.find(c => c.id === id);
-  if (!cat) return;
-  const newName = prompt("Modifier le nom de la catégorie :", cat.name);
-  if (newName && newName.trim() !== "") {
-    cat.name = newName.trim();
-    saveBudgetData();
-    renderCatModalList();
-    renderBudget();
-  }
-};
+function setupBudgetEventListeners() {
+  const form = document.getElementById('txForm');
+  if (form) {
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const type = document.getElementById('txType').value;
+      const title = document.getElementById('txTitle').value.trim();
+      const amount = parseFloat(document.getElementById('txAmount').value);
+      const cat = document.getElementById('txCategory').value;
+      const date = document.getElementById('txDate').value;
 
-window.deleteCategory = (id) => {
-  if (confirm("Supprimer cette catégorie ? (Les opérations existantes perdront cette étiquette mais ne seront pas supprimées)")) {
-    categories = categories.filter(c => c.id !== id);
-    transactions.forEach(tx => {
-      if (tx.categoryId === id) tx.categoryId = '';
-    });
-    saveBudgetData();
-    renderCatModalList();
-    renderBudget();
-  }
-};
+      if (!title || isNaN(amount) || amount <= 0 || !date) {
+        alert('Veuillez remplir correctement les champs obligatoires.');
+        return;
+      }
 
-const catForm = document.getElementById('catForm');
-if (catForm) {
-  catForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const nameInput = document.getElementById('newCatName');
-    const name = nameInput.value.trim();
-    if (name) {
-      categories.push({ id: 'c_' + Date.now(), name });
+      if (currentEditingTxId) {
+        // Édition
+        const tx = transactions.find(t => t.id === currentEditingTxId);
+        if (tx) {
+          tx.type = type;
+          tx.title = title;
+          tx.amount = amount;
+          tx.categoryId = cat;
+          tx.date = date;
+        }
+      } else {
+        // Nouvelle transaction
+        const recurring = document.getElementById('txRecurring')?.checked || false;
+        const recId = recurring ? 'rec_' + Date.now() : null;
+
+        transactions.push({
+          id: 'tx_' + Date.now(),
+          type,
+          categoryId: cat,
+          title,
+          amount,
+          date,
+          cleared: false, 
+          recurringId: recId
+        });
+
+        if (recurring) {
+          recurringRules.push({
+            id: recId,
+            type,
+            categoryId: cat,
+            title,
+            amount,
+            startDate: date,
+            day: parseInt(date.split('-')[2], 10)
+          });
+        }
+      }
+
       saveBudgetData();
-      nameInput.value = '';
-      renderCatModalList();
-      renderBudget();
+      closeTxModal();
+      loadCurrentAccountTransactions();
+    };
+  }
+
+  // Formulaire Catégorie
+  const catForm = document.getElementById('categoryForm');
+  if (catForm) {
+    catForm.onsubmit = (e) => {
+      e.preventDefault();
+      const name = document.getElementById('catName').value.trim();
+      const icon = document.getElementById('catIcon').value.trim() || '📁';
+      if (!name) return;
+
+      categories.push({
+        id: 'cat_' + Date.now(),
+        name,
+        icon,
+        type: 'expense'
+      });
+      localStorage.setItem('budget_categories', JSON.stringify(categories));
+      saveToCloud('budget_categories', categories);
+
+      renderCategoryManagementList();
+      catForm.reset();
+    };
+  }
+
+  // Formulaire Compte bancaire
+  const accForm = document.getElementById('accountForm');
+  if (accForm) {
+    accForm.onsubmit = (e) => {
+      e.preventDefault();
+      const name = document.getElementById('accName').value.trim();
+      const initial = parseFloat(document.getElementById('accInitialBalance').value) || 0;
+      const color = document.getElementById('accColor').value || '#3b82f6';
+      const editId = document.getElementById('accEditId').value;
+
+      if (!name) return;
+
+      if (editId) {
+        const acc = bankAccounts.find(a => a.id === editId);
+        if (acc) {
+          acc.name = name;
+          acc.initialBalance = initial;
+          acc.color = color;
+        }
+      } else {
+        const newId = 'acc_' + Date.now();
+        bankAccounts.push({
+          id: newId,
+          name,
+          initialBalance: initial,
+          color
+        });
+      }
+
+      localStorage.setItem('bank_accounts', JSON.stringify(bankAccounts));
+      saveToCloud('bank_accounts', bankAccounts);
+
+      renderAccountTabs();
+      renderAccountsOverviewList();
+      closeAccountModal();
+      loadBudgetData();
+    };
+  }
+
+  // Écoute des synchronisations Cloud
+  window.addEventListener('cloudSyncReceived', (e) => {
+    if (e.detail && e.detail.key) {
+      if (e.detail.key === 'bank_accounts' || e.detail.key === 'budget_categories') {
+        loadBudgetData();
+      } else if (e.detail.key === 'budget_tx_' + currentAccountId) {
+        loadCurrentAccountTransactions();
+      }
     }
   });
 }
 
-/* --- GESTION DE LA CRÉATION ET MODIFICATION DE COMPTE --- */
-window.openAccountModal = function(accId) {
+// --- GESTION DES CATÉGORIES (MODALE) ---
+window.openCategoryModal = () => {
+  renderCategoryManagementList();
+  document.getElementById('categoryModal').style.display = 'flex';
+};
+
+window.closeCategoryModal = () => {
+  document.getElementById('categoryModal').style.display = 'none';
+};
+
+function renderCategoryManagementList() {
+  const list = document.getElementById('categoryManageList');
+  if (!list) return;
+
+  list.innerHTML = categories.map(c => `
+    <div style="background:var(--bg); border:1px solid var(--border); padding:8px 12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <div>${c.icon || '📁'} <strong>${c.name}</strong></div>
+      <button class="btn-danger" onclick="deleteCategory('${c.id}')" title="Supprimer">✕</button>
+    </div>
+  `).join('');
+}
+
+window.deleteCategory = (id) => {
+  categories = categories.filter(c => c.id !== id);
+  localStorage.setItem('budget_categories', JSON.stringify(categories));
+  saveToCloud('budget_categories', categories);
+  renderCategoryManagementList();
+};
+
+// --- GESTION DES COMPTES (MODALE) ---
+window.openAccountModal = (isEdit = false) => {
   const form = document.getElementById('accountForm');
-  if (form) form.reset();
+  form.reset();
 
-  const titleEl = document.getElementById('accountModalTitle');
-  const btnDelete = document.getElementById('btnDeleteAccount');
-  const editIdInput = document.getElementById('editAccountId');
+  const editIdInput = document.getElementById('accEditId');
+  const deleteBtn = document.getElementById('btnDeleteAccount');
 
-  if (accId) {
-    const acc = bankAccounts.find(a => a.id === accId);
+  if (isEdit && currentAccountId) {
+    const acc = bankAccounts.find(a => a.id === currentAccountId);
     if (!acc) return;
-    if (titleEl) titleEl.textContent = "Modifier le compte";
-    if (editIdInput) editIdInput.value = acc.id;
-    document.getElementById('accFormName').value = acc.name || '';
-    document.getElementById('accFormIcon').value = acc.icon || '💳';
-    document.getElementById('accFormBalance').value = acc.baseBalance !== undefined ? acc.baseBalance : 0;
-    document.getElementById('accFormSharing').value = acc.sharing || 'parents';
-    if (btnDelete) btnDelete.style.display = 'inline-block';
+
+    document.getElementById('accountModalTitle').textContent = 'Modifier le compte';
+    editIdInput.value = acc.id;
+    document.getElementById('accName').value = acc.name;
+    document.getElementById('accInitialBalance').value = acc.initialBalance || 0;
+    document.getElementById('accColor').value = acc.color || '#3b82f6';
+    if (deleteBtn) deleteBtn.style.display = bankAccounts.length > 1 ? 'block' : 'none';
   } else {
-    if (titleEl) titleEl.textContent = "Nouveau Compte";
-    if (editIdInput) editIdInput.value = '';
-    document.getElementById('accFormIcon').value = '💳';
-    document.getElementById('accFormBalance').value = '0.00';
-    document.getElementById('accFormSharing').value = 'parents';
-    if (btnDelete) btnDelete.style.display = 'none';
+    document.getElementById('accountModalTitle').textContent = 'Nouveau compte bancaire';
+    editIdInput.value = '';
+    if (deleteBtn) deleteBtn.style.display = 'none';
   }
 
   document.getElementById('accountModal').style.display = 'flex';
 };
 
-window.openEditActiveAccountModal = function() {
-  if (!currentAccountId) {
-    alert("Veuillez d'abord sélectionner un compte.");
-    return;
-  }
-  openAccountModal(currentAccountId);
-};
-
-window.closeAccountModal = function() {
+window.closeAccountModal = () => {
   document.getElementById('accountModal').style.display = 'none';
 };
 
-window.deleteCurrentActiveAccount = async function() {
-  const editId = document.getElementById('editAccountId').value;
+window.deleteCurrentAccount = async () => {
+  const editId = document.getElementById('accEditId').value;
   if (!editId) return;
 
-  const acc = bankAccounts.find(a => a.id === editId);
-  if (!acc) return;
+  if (bankAccounts.length <= 1) {
+    alert("Vous ne pouvez pas supprimer l'unique compte restant.");
+    return;
+  }
 
-  if (confirm(`Supprimer définitivement le compte « ${acc.name} » et tout son historique ?`)) {
+  if (confirm("Êtes-vous sûr de vouloir supprimer définitivement ce compte bancaire et l'intégralité de son historique ?")) {
     bankAccounts = bankAccounts.filter(a => a.id !== editId);
-    localStorage.removeItem('transactions_' + editId);
-    localStorage.removeItem('recurring_rules_' + editId);
-    localStorage.removeItem('categories_' + editId);
     localStorage.setItem('bank_accounts', JSON.stringify(bankAccounts));
-
-    // Suppression sur Upstash
-    await deleteFromCloud('transactions_' + editId);
-    await deleteFromCloud('recurring_rules_' + editId);
-    await deleteFromCloud('categories_' + editId);
     await saveToCloud('bank_accounts', bankAccounts);
 
+    // Supprimer les transactions locales et distantes
+    localStorage.removeItem('budget_tx_' + editId);
+    await deleteFromCloud('budget_tx_' + editId);
+
+    localStorage.removeItem('recurring_rules_' + editId);
+    await deleteFromCloud('recurring_rules_' + editId);
+
+    currentAccountId = bankAccounts[0].id;
     closeAccountModal();
-    currentAccountId = null;
-    showBudgetAccountsView();
+    loadBudgetData();
   }
 };
-
-const accountForm = document.getElementById('accountForm');
-if (accountForm) {
-  accountForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const editId = document.getElementById('editAccountId').value;
-    const name = document.getElementById('accFormName').value.trim();
-    const icon = document.getElementById('accFormIcon').value.trim() || '💳';
-    const balance = parseFloat(document.getElementById('accFormBalance').value) || 0;
-    const sharing = document.getElementById('accFormSharing').value;
-
-    if (!name) return;
-
-    if (editId) {
-      const acc = bankAccounts.find(a => a.id === editId);
-      if (acc) {
-        acc.name = name;
-        acc.icon = icon;
-        acc.baseBalance = balance;
-        acc.sharing = sharing;
-      }
-    } else {
-      const newAcc = {
-        id: 'acc_' + Date.now(),
-        name,
-        icon,
-        baseBalance: balance,
-        sharing,
-        ownerId: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : 'u1'
-      };
-      bankAccounts.push(newAcc);
-      currentAccountId = newAcc.id;
-    }
-
-    localStorage.setItem('bank_accounts', JSON.stringify(bankAccounts));
-    saveToCloud('bank_accounts', bankAccounts);
-
-    closeAccountModal();
-    if (currentAccountId) {
-      loadCurrentAccountData();
-    } else {
-      showBudgetAccountsView();
-    }
-  });
-}
 
 /* --- GESTION DES RÉCURRENCES (MODALE) --- */
 window.openRecurringModal = () => { 
@@ -674,7 +634,6 @@ function renderRecurringList() {
     `;
   }).join('');
 
-  // Calcul du total (revenus - dépenses)
   const total = recurringRules.reduce((sum, r) => sum + (r.type === 'income' ? r.amount : -r.amount), 0);
 
   const totalHtml = `
@@ -688,23 +647,6 @@ function renderRecurringList() {
 
   list.innerHTML = itemsHtml + totalHtml;
 }
-    const cName = categories.find(c => c.id === r.categoryId)?.name || '';
-    return `
-      <div style="background:var(--bg); border:1px solid var(--border); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <div>
-          <div style="font-weight:700;">${r.title}</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">
-            Le ${r.day} du mois • <span class="${r.type === 'income' ? 'positive' : 'negative'}">${r.type === 'income' ? '+' : '-'}${formatMoney(r.amount)}</span> ${cName ? '('+cName+')' : ''}
-          </div>
-        </div>
-        <div style="display:flex; gap:6px;">
-          <button class="btn-nav" onclick="editRecurringRuleAmount('${r.id}')" title="Modifier le montant">✏️</button>
-          <button class="btn-danger" onclick="deleteRecurringRule('${r.id}')" title="Supprimer">✕</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
 
 window.deleteRecurringRule = (id) => {
   if (confirm("Supprimer cette récurrence ?\n\nToutes les opérations non pointées liées seront également supprimées.")) {
@@ -713,116 +655,140 @@ window.deleteRecurringRule = (id) => {
     transactions = transactions.filter(t => t.recurringId !== id || t.cleared === true);
     saveBudgetData();
     renderRecurringList();
-    loadCurrentAccountData();
+    renderCurrentMonth();
   }
 };
 
 window.editRecurringRuleAmount = (id) => {
   const rule = recurringRules.find(r => r.id === id);
   if (!rule) return;
-  
-  const newAmountStr = prompt(`Modifier le montant pour "${rule.title}" (€) :\n(Les opérations non pointées de ce mois seront mises à jour)`, rule.amount);
-  if (newAmountStr === null) return;
-  
-  const newAmount = parseFloat(newAmountStr.replace(',', '.'));
-  if (isNaN(newAmount) || newAmount <= 0) {
+
+  const currentAmt = rule.amount;
+  const input = prompt(`Nouveau montant pour "${rule.title}" :`, currentAmt);
+  if (input === null) return;
+
+  const newAmt = parseFloat(input.replace(',', '.'));
+  if (isNaN(newAmt) || newAmt <= 0) {
     alert("Montant invalide.");
     return;
   }
-  
-  rule.amount = newAmount;
-  
-  // Met aussi à jour les opérations mensuelles non pointées correspondantes
+
+  rule.amount = newAmt;
+
+  // Mettre à jour les transactions non pointées associées à cette récurrence
   transactions.forEach(t => {
     if (t.recurringId === id && !t.cleared) {
-      t.amount = newAmount;
+      t.amount = newAmt;
     }
   });
-  
+
   saveBudgetData();
   renderRecurringList();
-  loadCurrentAccountData();
+  renderCurrentMonth();
 };
 
-/* --- SOUMISSION DE L'OPÉRATION (AJOUT OU MODIFICATION) --- */
-const txForm = document.getElementById('txForm');
-if (txForm) {
-  txForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const editId = document.getElementById('editTxId')?.value;
-    const type = document.getElementById('txType').value;
-    const cat = document.getElementById('txCategory').value;
-    const title = document.getElementById('txTitle').value.trim();
-    const amount = parseFloat(document.getElementById('txAmount').value);
-    const date = document.getElementById('txDate').value;
+// --- VIREMENTS COMPTE À COMPTE ---
+window.openTransferModal = () => {
+  const fromSelect = document.getElementById('transferFrom');
+  const toSelect = document.getElementById('transferTo');
 
-    if (!title || isNaN(amount) || !date) return;
+  if (!fromSelect || !toSelect) return;
 
-    if (editId) {
-      const tx = transactions.find(t => t.id === editId);
-      if (tx) {
-        tx.type = type;
-        tx.categoryId = cat;
-        tx.title = title;
-        tx.amount = amount;
-        tx.date = date;
-      }
-    } else {
-      const recurring = document.getElementById('txRecurring')?.checked || false;
-      const recId = recurring ? 'rec_' + Date.now() : null;
+  fromSelect.innerHTML = '';
+  toSelect.innerHTML = '';
 
-      transactions.push({
-        id: 'tx_' + Date.now(),
-        type,
-        categoryId: cat,
-        title,
-        amount,
-        date,
-        cleared: false, 
-        recurringId: recId
-      });
+  bankAccounts.forEach(acc => {
+    const optFrom = document.createElement('option');
+    optFrom.value = acc.id;
+    optFrom.textContent = acc.name;
+    if (acc.id === currentAccountId) optFrom.selected = true;
+    fromSelect.appendChild(optFrom);
 
-      if (recurring) {
-        recurringRules.push({
-          id: recId,
-          type,
-          categoryId: cat,
-          title,
-          amount,
-          startDate: date,
-          day: parseInt(date.split('-')[2], 10)
-        });
-      }
-    }
-
-    saveBudgetData();
-    closeTxModal();
-    loadCurrentAccountData();
+    const optTo = document.createElement('option');
+    optTo.value = acc.id;
+    optTo.textContent = acc.name;
+    toSelect.appendChild(optTo);
   });
+
+  // Choisir par défaut un compte différent pour le destinataire
+  const otherAcc = bankAccounts.find(a => a.id !== currentAccountId);
+  if (otherAcc) toSelect.value = otherAcc.id;
+
+  document.getElementById('transferDate').value = getTodayBudgetStr();
+  document.getElementById('transferModal').style.display = 'flex';
+};
+
+window.closeTransferModal = () => {
+  document.getElementById('transferModal').style.display = 'none';
+};
+
+window.submitTransfer = (e) => {
+  e.preventDefault();
+  const fromId = document.getElementById('transferFrom').value;
+  const toId = document.getElementById('transferTo').value;
+  const amount = parseFloat(document.getElementById('transferAmount').value);
+  const date = document.getElementById('transferDate').value;
+  const title = document.getElementById('transferTitle').value.trim() || 'Virement interne';
+
+  if (fromId === toId) {
+    alert('Le compte émetteur et le compte récepteur doivent être différents.');
+    return;
+  }
+
+  if (isNaN(amount) || amount <= 0 || !date) {
+    alert('Veuillez spécifier un montant valide et une date.');
+    return;
+  }
+
+  // Charger les transactions du compte émetteur
+  let fromTxs = JSON.parse(localStorage.getItem('budget_tx_' + fromId)) || [];
+  fromTxs.push({
+    id: 'tx_trf_' + Date.now() + '_out',
+    type: 'expense',
+    categoryId: 'cat_virement',
+    title: `Virement vers: ${bankAccounts.find(a => a.id === toId)?.name || 'Compte'} - ${title}`,
+    amount,
+    date,
+    cleared: false
+  });
+  localStorage.setItem('budget_tx_' + fromId, JSON.stringify(fromTxs));
+  saveToCloud('budget_tx_' + fromId, fromTxs);
+
+  // Charger les transactions du compte récepteur
+  let toTxs = JSON.parse(localStorage.getItem('budget_tx_' + toId)) || [];
+  toTxs.push({
+    id: 'tx_trf_' + Date.now() + '_in',
+    type: 'income',
+    categoryId: 'cat_virement',
+    title: `Virement depuis: ${bankAccounts.find(a => a.id === fromId)?.name || 'Compte'} - ${title}`,
+    amount,
+    date,
+    cleared: false
+  });
+  localStorage.setItem('budget_tx_' + toId, JSON.stringify(toTxs));
+  saveToCloud('budget_tx_' + toId, toTxs);
+
+  closeTransferModal();
+  loadCurrentAccountTransactions();
+};
+
+// --- UTILITAIRES ---
+function getTodayBudgetStr() {
+  return new Date().toISOString().split('T')[0];
 }
 
-/* --- CHANGEMENT DE MOIS --- */
-window.changeMonth = function(delta) {
-  currentDateBudget.setDate(1); 
-  currentDateBudget.setMonth(currentDateBudget.getMonth() + delta);
-  renderBudget();
-};
+function formatMoney(amount) {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount || 0);
+}
 
-/* --- GESTION DU MENU DÉROULANT OPTIONS BUDGET --- */
-window.toggleBudgetOptions = function(event) {
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-  const menu = document.getElementById('budget-options-menu');
-  if (menu) {
-    menu.classList.toggle('show');
-  }
-};
+function getBudgetMonthKey(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  return `${parts[0]}-${String(parts[1]).padStart(2, '0')}`;
+}
 
-document.addEventListener('click', function(event) {
-  const menu = document.getElementById('budget-options-menu');
-  if (menu && menu.classList.contains('show') && !event.target.closest('.dropdown-container')) {
-    menu.classList.remove('show');
-  }
-});
+function formatDateFr(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
