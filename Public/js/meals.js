@@ -67,12 +67,28 @@ const MEAL_DAYS = [
   { id: 'fri_end', name: 'Vendredi suivant', slots: [{ id: 'fri_mid', label: 'Midi' }] }
 ];
 
-let weeklyPlan = JSON.parse(localStorage.getItem('weekly_meals_plan')) || {};
+// Détermination de la clé de stockage propre au profil actif
+function getMealPlanStorageKey() {
+  const uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.id) ? currentUser.id : 'default';
+  return 'weekly_meals_plan_' + uid;
+}
+
+let weeklyPlan = {};
 let defaultPortions = parseInt(localStorage.getItem('default_meal_portions'), 10) || 4;
 let activePickingSlotId = null;
 
+// Chargement du menu du profil connecté
+window.loadCurrentProfileMealPlan = function() {
+  weeklyPlan = JSON.parse(localStorage.getItem(getMealPlanStorageKey())) || {};
+  renderMeals();
+};
+
 function saveMealsPlan() {
-  localStorage.setItem('weekly_meals_plan', JSON.stringify(weeklyPlan));
+  const key = getMealPlanStorageKey();
+  localStorage.setItem(key, JSON.stringify(weeklyPlan));
+  if (typeof window.saveToUpstash === 'function') {
+    window.saveToUpstash(key, weeklyPlan);
+  }
 }
 
 // Menu Déroulant "Options"
@@ -122,7 +138,6 @@ window.updateMealPortions = function(slotId, val) {
   }
   saveMealsPlan();
 };
-
 // --- AFFICHAGE DU PLANNING (LISIBILITÉ OPTIMISÉE) ---
 window.renderMeals = function() {
   const container = document.getElementById('mealsGrid');
