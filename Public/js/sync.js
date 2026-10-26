@@ -56,7 +56,7 @@ window.syncFromUpstash = async function() {
     const remoteData = await res.json();
 
     if (remoteData && typeof remoteData === 'object' && Object.keys(remoteData).length > 0) {
-      // 1. Mise à jour silencieuse du cache local (sans réémettre d'envois vers le serveur)
+      // 1. Mise à jour silencieuse du cache local
       Object.entries(remoteData).forEach(([k, v]) => {
         originalSetItem(k, typeof v === 'string' ? v : JSON.stringify(v));
       });
@@ -68,7 +68,7 @@ window.syncFromUpstash = async function() {
         if (typeof renderAppUsersList === 'function' && currentUser && currentUser.role === 'parent') renderAppUsersList();
       }
 
-      // 3. Missions et étoiles (mise à jour directe de la mémoire active)
+      // 3. Missions et étoiles
       if (remoteData.family_rewards_app || remoteData.family_missions_state) {
         const raw = remoteData.family_rewards_app || remoteData.family_missions_state;
         const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -89,10 +89,20 @@ window.syncFromUpstash = async function() {
         }
       }
 
-      // 5. Menus
-      if (remoteData.weekly_meals_plan && typeof renderMeals === 'function') {
-        window.weeklyPlan = typeof remoteData.weekly_meals_plan === 'string' ? JSON.parse(remoteData.weekly_meals_plan) : remoteData.weekly_meals_plan;
-        renderMeals();
+      // 5. Menus individuels par profil
+      const currentProfileMealKey = (typeof currentUser !== 'undefined' && currentUser && currentUser.id) 
+        ? ('weekly_meals_plan_' + currentUser.id) 
+        : null;
+
+      if (currentProfileMealKey && remoteData[currentProfileMealKey]) {
+        const parsedPlan = typeof remoteData[currentProfileMealKey] === 'string' 
+          ? JSON.parse(remoteData[currentProfileMealKey]) 
+          : remoteData[currentProfileMealKey];
+
+        originalSetItem(currentProfileMealKey, JSON.stringify(parsedPlan));
+        if (typeof window.loadCurrentProfileMealPlan === 'function') {
+          window.loadCurrentProfileMealPlan();
+        }
       }
 
       // 6. Tableau de bord
