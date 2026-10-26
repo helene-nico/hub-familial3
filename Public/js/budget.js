@@ -239,7 +239,17 @@ function generateRecurringTransactions(monthKey) {
 
   recurringRules.forEach(rule => {
     const ruleMonthKey = getBudgetMonthKey(rule.startDate);
-    if (ruleMonthKey <= monthKey) {
+    
+    // Vérification de la date de fin
+    let isPastEndDate = false;
+    if (rule.endDate) {
+      const endMonthKey = getBudgetMonthKey(rule.endDate);
+      if (monthKey > endMonthKey) {
+        isPastEndDate = true;
+      }
+    }
+
+    if (!isPastEndDate && ruleMonthKey <= monthKey) {
       const exists = transactions.some(t => t.recurringId === rule.id && getBudgetMonthKey(t.date) === monthKey);
 
       if (!exists) {
@@ -445,7 +455,17 @@ window.openTxModal = (txId = null) => {
     if (editIdInput) editIdInput.value = '';
     const dateInput = document.getElementById('txDate');
     if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-    if (recurringGroup) recurringGroup.style.display = 'block';
+    
+    if (recurringGroup) {
+      recurringGroup.style.display = 'block';
+      const recCheck = document.getElementById('txRecurring');
+      if (recCheck) recCheck.checked = false;
+      const recEndGrp = document.getElementById('txRecurringEndGroup');
+      if (recEndGrp) recEndGrp.style.display = 'none';
+      const recEndDt = document.getElementById('txRecurringEndDate');
+      if (recEndDt) recEndDt.value = '';
+    }
+    
     if (btnDelete) btnDelete.style.display = 'none';
   }
 
@@ -787,6 +807,9 @@ if (txForm) {
       });
 
       if (recurring) {
+        const endDateInput = document.getElementById('txRecurringEndDate');
+        const endDate = endDateInput && endDateInput.value ? endDateInput.value : null;
+
         recurringRules.push({
           id: recId,
           type,
@@ -794,6 +817,7 @@ if (txForm) {
           title,
           amount,
           startDate: date,
+          endDate: endDate,
           day: parseInt(date.split('-')[2], 10)
         });
       }
