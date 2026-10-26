@@ -1167,3 +1167,4 @@ window.printRecipeBook = async function() {
     if (pdfTab) pdfTab.document.body.innerHTML = container.innerHTML;
   }
 };
+window.loadCurrentProfileMealPlan();
